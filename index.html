@@ -1,4 +1,3 @@
-<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
 <!DOCTYPE html>
 <html lang="vi">
 <head>
@@ -215,6 +214,7 @@ mark.hl{background:#fff1a8;border-radius:4px;padding:0 2px;color:inherit}
 @keyframes spFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
 @keyframes spA{0%,20%{opacity:1;transform:rotate(0) scale(1)}40%{opacity:0;transform:rotate(180deg) scale(.6)}60%{opacity:0;transform:rotate(360deg) scale(.6)}80%,100%{opacity:1;transform:rotate(360deg) scale(1)}}
 @keyframes spB{0%,20%{opacity:0;transform:rotate(-180deg) scale(.6)}40%,60%{opacity:1;transform:rotate(0) scale(1)}80%,100%{opacity:0;transform:rotate(180deg) scale(.6)}}
+.modal{max-height:90vh;overflow-y:auto}
 </style>
 </head>
 <body>
@@ -249,10 +249,34 @@ UNITS.forEach(u => {
 });
 const TOTAL_UNITS = UNITS.length;
 const N_STRUCT = UNITS.filter(u => !u.cmp).length;
-const GROUPS = [["Nhóm 1", "Bài 16–18"], ["Nhóm 2", "Bài 19–21"], ["Nhóm 3", "Bài 22–24"], ["Nhóm 4", "Bài 25–27"], ["Nhóm 5", "Bài 28–30"], ["Nhóm 6", "Phần phân biệt"]];
+const GROUPS = [["Nhóm 1", "Bài 16–18"], ["Nhóm 2", "Bài 19–21"], ["Nhóm 3", "Bài 22–24"], ["Nhóm 4", "Bài 25–27"], ["Nhóm 5", "Bài 28–30"], ["Nhóm 6", "Phần phân biệt"], ["Nhóm 7", "Bổ sung"]];
 const EGRP = {}; ALLEX.forEach(e => { const u = UB[e.uid]; EGRP[e.id] = u.lesson === "C" ? 5 : Math.max(0, Math.min(4, Math.floor((Number(u.lesson) - 16) / 3))); });
 const GSIZE = GROUPS.map((_, g) => ALLEX.filter(e => EGRP[e.id] === g).length);
 const TOTAL_Q = ALLEX.length;
+/* ===== Bài tập "Bổ sung" (Nhóm 7): tự sinh từ ví dụ của thẻ từ vựng ===== */
+UB.bs = { id: "bs", n: 0, lesson: "S", zh: "Bổ sung", vi: "Từ vựng do bạn tự thêm", use: "", formula: "Câu ví dụ trong thẻ từ vựng của bạn.", ex: [], hidden: true };
+let LEXB = null;
+function lexicon() { if (!LEXB) { LEXB = new Set(Object.keys(VOCAB_DICT)); ALLEX.forEach(e => { if (e.uid !== "bs") e.ch.forEach(t => LEXB.add(t)); }); } return LEXB; }
+const PUN_RE = /[，。？！、；：“”‘’（）…—]/;
+function normZh(s) { return String(s || "").replace(/\s+/g, "").replace(/,/g, "，").replace(/\?/g, "？").replace(/!/g, "！").replace(/;/g, "；").replace(/:/g, "：").replace(/\.$/, "。"); }
+function segment(txt, word, lex) {
+  const out = [];
+  const seg = p => { let i = 0; while (i < p.length) { if (PUN_RE.test(p[i])) { out.push(p[i]); i++; continue; } let L = 1; for (let n = Math.min(6, p.length - i); n >= 2; n--) { const w = p.slice(i, i + n); if (!PUN_RE.test(w) && lex.has(w)) { L = n; break; } } out.push(p.slice(i, i + L)); i += L; } };
+  const k = word ? txt.indexOf(word) : -1;
+  if (k >= 0) { seg(txt.slice(0, k)); out.push(word); seg(txt.slice(k + word.length)); } else seg(txt);
+  return out;
+}
+function syncCustom(list) {
+  for (let i = ALLEX.length - 1; i >= 0; i--) if (ALLEX[i].uid === "bs") { delete EB[ALLEX[i].id]; delete EGRP[ALLEX[i].id]; ALLEX.splice(i, 1); }
+  const lex = lexicon();
+  (list || []).forEach(v => {
+    if (!v.ex || !v.ex.zh) return;
+    const z = normZh(v.ex.zh); if (!z) return;
+    const m = z.match(/[。！？]$/), fp = m ? m[0] : "", ch = segment(fp ? z.slice(0, -1) : z, v.zh, lex); if (!ch.length) return;
+    const e = { id: "vx-" + v.id, lv: "b", src: "vx", uid: "bs", zh: ch.join("") + fp, py: v.ex.py || "", vi: v.ex.vi || "", ch, fp, ord: true, alt: [], vid: v.id };
+    e.canOrder = ch.length >= 3; e.okSet = new Set([e.zh]); EB[e.id] = e; ALLEX.push(e); EGRP[e.id] = 6;
+  });
+}
 function itemInfo(key) {
   const p = key.split(":");
   if (p[0] === "u") { const u = UB[p[1]]; return u ? { kind: "u", type: (u.cmp && p[2] === "formula") ? "card" : p[2], uid: u.id, u } : null; }
@@ -268,8 +292,8 @@ const TRACKS = {
 };
 function TRK() { return TRACKS[S.nav.track] ? S.nav.track : "b"; }
 function unitInTrack(u, t) { t = t || TRK(); return t === "c" ? true : !u.cmp; }
-function exTrack(e) { const u = UB[e.uid]; return u.cmp ? "c" : e.lv === "a" ? "a" : "b"; }
-function exInTrack(e, t) { t = t || TRK(); return t === "c" || exTrack(e) === t; }
+function exTrack(e) { if (e.uid === "bs") return TRK(); const u = UB[e.uid]; return u.cmp ? "c" : e.lv === "a" ? "a" : "b"; }
+function exInTrack(e, t) { t = t || TRK(); return t === "c" || e.uid === "bs" || exTrack(e) === t; }
 function itemTrack(info) { return info.kind === "u" ? (info.u.cmp ? "c" : "b") : exTrack(info.e); }
 function infoInTrack(info, t) { t = t || TRK(); return t === "c" || itemTrack(info) === t; }
 function itemInTrack(key, t) { const i = itemInfo(key); return !!i && infoInTrack(i, t); }
@@ -296,7 +320,7 @@ function migrate(o) {
   ["items", "units"].forEach(k => { if (o[k] && typeof o[k] === "object") for (const key in o[k]) { const r = sanitizeRec(o[k][key]); if (r) b[k][key] = r; } });
   if (o.cards && typeof o.cards === "object") for (const k in o.cards) if (o.cards[k] === "known" || o.cards[k] === "unknown") b.cards[k] = o.cards[k];
   if (Array.isArray(o.vocab)) b.vocab = o.vocab.slice(0, 2000).filter(v => v && typeof v === "object" && v.zh).map(v => ({ id: String(v.id || ("v" + Math.random().toString(36).slice(2, 9))).slice(0, 24), zh: String(v.zh).slice(0, 40), py: String(v.py || "").slice(0, 80), hv: String(v.hv || "").slice(0, 80), vi: String(v.vi || "").slice(0, 200), ex: v.ex && v.ex.zh ? { id: String(v.ex.id || "").slice(0, 24), zh: String(v.ex.zh).slice(0, 200), py: String(v.ex.py || "").slice(0, 400), vi: String(v.ex.vi || "").slice(0, 400) } : null, t: num(v.t, 0), k: v.k === "known" || v.k === "unknown" ? v.k : "" }));
-  if (o.done && typeof o.done === "object") for (const k in o.done) if (o.done[k]) b.done[k] = num(o.done[k], 1);
+  syncCustom(b.vocab); if (o.done && typeof o.done === "object") for (const k in o.done) if (o.done[k]) b.done[k] = num(o.done[k], 1);
   if (o.types && typeof o.types === "object") for (const k in o.types) b.types[k] = { n: Math.max(0, num(o.types[k].n, 0) | 0), c: Math.max(0, num(o.types[k].c, 0) | 0) };
   if (o.days && typeof o.days === "object") for (const k in o.days) if (/^\d{4}-\d\d-\d\d(\|[bac])?$/.test(k)) b.days[k] = { n: Math.max(0, num(o.days[k].n, 0) | 0), c: Math.max(0, num(o.days[k].c, 0) | 0) };
   if (Array.isArray(o.log)) b.log = o.log.slice(-200).filter(x => x && typeof x === "object").map(x => ({ t: num(x.t, 0), mode: String(x.mode || ""), track: ["b", "a", "c"].includes(x.track) ? x.track : "", n: num(x.n, 0) | 0, c: num(x.c, 0) | 0, rt: Array.isArray(x.rt) ? x.rt.slice(0, 4).map(v => num(v, 0) | 0) : [0, 0, 0, 0], units: Array.isArray(x.units) ? x.units.map(String).slice(0, 40) : [], next: num(x.next, 0) }));
@@ -467,7 +491,7 @@ function route() {
   const parts = (location.hash.replace(/^#\/?/, "") || "home").split("/");
   const page = parts[0] || "home", arg = parts[1];
   if (page !== "session" && Q && !Q.finished && page !== "") { /* rời phiên: kết quả đã được lưu từng câu */ Q = null; }
-  if (page === "lesson" && !UB[arg]) { location.hash = "#/lessons"; return; }
+  if (page === "lesson" && (!UB[arg] || UB[arg].hidden)) { location.hash = "#/lessons"; return; }
   if (page === "lesson" && !unitInTrack(UB[arg])) { S.nav.track = UB[arg].cmp ? "c" : "b"; save(); }
   if (page === "review") { location.hash = "#/practice"; return; }
   if (page === "session" && !Q) { location.hash = "#/practice"; return; }
@@ -492,7 +516,7 @@ function appleColor(p) {
 }
 /* Linh vật trái cây: tiến hóa theo tỷ lệ trả lời đúng (ngưỡng không hiển thị ở đâu trong giao diện) */
 const FRUITS = [["🍏", 0, 5, .72], ["🍓", 0, 5, .7], ["🥝", 0, 1, .7], ["🍇", 0, -6, .55], ["🍊", 0, 2, .72], ["🍐", 0, 7, .58], ["🥑", 0, 7, .58], ["🍑", 0, 2, .7], ["🥭", 0, 2, .66], ["🍍", 0, 9, .5], ["🍉", 0, 0, .8]];
-function curStage() { let ok = 0; for (const k in S.pq) if (S.pq[k].s === "ok") ok++; return clamp(Math.floor(ok * 10 / TOTAL_Q), 0, 10); }
+function curStage() { const ok = new Set(); [S.pq, S.lp].forEach(P => { for (const k in P) if (P[k].s === "ok" && EB[k] && EB[k].uid !== "bs") ok.add(k); }); return clamp(Math.floor(ok.size * 10 / TOTAL_Q), 0, 10); }
 function faceSvg(i, cheer) {
   const f = FRUITS[i];
   const eyes = cheer ? '<path class="feyes" d="M26 47Q34 35 42 47M58 47Q66 35 74 47" fill="none" stroke="#3b2626" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>' : '<path d="M26 47Q34 35 42 47M58 47Q66 35 74 47" fill="none" stroke="#3b2626" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/>';
@@ -559,7 +583,7 @@ function mascot(mood) { return fruitHTML("big"); }
 function updateHeader() { const h = $("#hdrIcon"); if (h) h.innerHTML = fruitHTML("sm"); }
 
 /* ============ TRANG CHỦ ============ */
-function dueUnitCount() { const P = reviewPlan(); return new Set([].concat(P.freq, P.over, P.today).map(x => x.uid)).size; }
+function dueUnitCount() { return wrongIds().length; }
 function nextLesson() {
   const last = S.nav.last && UB[S.nav.last] && unitInTrack(UB[S.nav.last]) ? S.nav.last : null;
   if (last && !S.done[last]) return UB[last];
@@ -734,14 +758,13 @@ function buildReview(size) {
   }
   return interleave(keys.slice(0, size));
 }
+function wrongIds() { const ids = new Set(); [S.pq, S.lp].forEach(P => { for (const id in P) if (P[id].s === "wr" && EB[id] && exInTrack(EB[id])) ids.add(id); }); return [...ids]; }
+/* Ôn tập: 20 câu ngẫu nhiên (chỉ sắp xếp từ / nghe chọn, không có công thức), tập trung vào câu sai ở phần luyện */
 function buildReviewPack(n) {
-  const keys = buildReview(n), seen = new Set(keys);
-  if (keys.length < n) {
-    const pool = [];
-    shuffle(trackUnits().slice()).forEach(u => pool.push(pickExample(u.id, ["order", "listen"]), pickExample(u.id, ["listen", "order"]), keyOf("u", u.id, "formula")));
-    for (const k of shuffle(pool)) { if (keys.length >= n) break; if (k && !seen.has(k) && !isStructCard(k) && itemInfo(k) && itemInTrack(k)) { seen.add(k); keys.push(k); } }
-  }
-  return interleave(keys.slice(0, n));
+  const all = trackEx(), wr = new Set(wrongIds());
+  const w = shuffle(all.filter(e => wr.has(e.id))), o = shuffle(all.filter(e => !wr.has(e.id)));
+  const nw = Math.min(w.length, Math.max(n - o.length, Math.ceil(n * 0.7)));
+  return shuffle(w.slice(0, nw).concat(o.slice(0, n - nw))).slice(0, n).map(e => keyOf("e", e.id, pickType(e)));
 }
 function buildPractice(o) {
   let ex = ALLEX.filter(e => (o.scope === "all" || e.uid === o.scope) && (o.level === "all" || e.lv === o.level) && (o.extra || e.src === "doc"));
@@ -903,13 +926,13 @@ function renderSummary() {
   <div class="grid3" style="margin-top:12px"><div class="stat" style="display:block;text-align:center"><b>${n}</b><span>Đã ôn</span></div><div class="stat" style="display:block;text-align:center"><b style="color:var(--ok)">${c}</b><span>Đúng</span></div><div class="stat" style="display:block;text-align:center"><b style="color:var(--bad)">${w}</b><span>Sai</span></div></div>
   <div class="card"><b>Mức ghi nhớ:</b> ${names.map((nm, i) => `<span class="pill ${["review", "learning", "mastered", "mastered"][i]}" style="margin-left:4px">${nm} ${Q.rt[i]}</span>`).join("")}<div class="kv" style="margin-top:8px"><span>Lần ôn tiếp theo sớm nhất</span><b>${esc(nextTxt)}</b></div></div>
   <div class="card"><b>📈 Cấu trúc đã cải thiện</b>${improved.length ? improved.map(([u, a, b]) => `<div class="list-row"><span class="grow zh mid" style="font-size:16px">${esc(UB[u].zh)}</span><span class="pill mastered">${a}% → ${b}%</span></div>`).join("") : '<div class="small muted" style="margin-top:4px">Chưa có cấu trúc nào tăng mức ghi nhớ trong phiên này.</div>'}</div>
-  <div class="card"><b>⚠️ Cần chú ý</b>${attention.length ? attention.map(([u, wr]) => `<a class="list-row" style="text-decoration:none;color:inherit" href="#/lesson/${u}"><span class="grow zh mid" style="font-size:16px">${esc(UB[u].zh)}</span><span class="pill review">${wr ? "có câu sai" : "cần ôn"}</span></a>`).join("") : '<div class="small muted" style="margin-top:4px">Không có cấu trúc nào cần chú ý thêm.</div>'}</div>
-  ${Q.mode === "practice" ? (Q.meta.lesson ? '<div class="card cream small">Phần luyện này chỉ gồm câu của bài đang học và có tiến độ <b>riêng</b>, không lẫn với thẻ Luyện tập. Một câu sai chỉ được tính là đúng khi trả lời đúng 3 lần ở các phiên khác nhau.</div>' : '<div class="card cream small">Câu trả lời sai sẽ được nhắc lại trong nhóm này và 2 nhóm kế tiếp. Một câu sai chỉ được tính là đúng khi trả lời đúng 3 lần liên tiếp ở các phiên khác nhau.</div>') : ""}<div class="row wrap2"><button class="btn primary grow" data-act="sess-again">🔁 ${Q.mode === "review" ? "Ôn phiên mới" : "Phiên luyện mới"}</button>${Q.mode === "practice" && Q.meta.lesson ? `<a class="btn grow" href="#/lesson/${Q.meta.lesson}">📚 Về bài học</a>` : '<a class="btn grow" href="#/practice">✍️ Luyện tập</a>'}<a class="btn grow" href="#/stats">📊 Thống kê</a></div>`);
+  <div class="card"><b>⚠️ Cần chú ý</b>${attention.length ? attention.map(([u, wr]) => `<a class="list-row" style="text-decoration:none;color:inherit" href="${u === "bs" ? "#/practice" : "#/lesson/" + u}"><span class="grow zh mid" style="font-size:16px">${esc(UB[u].zh)}</span><span class="pill review">${wr ? "có câu sai" : "cần ôn"}</span></a>`).join("") : '<div class="small muted" style="margin-top:4px">Không có cấu trúc nào cần chú ý thêm.</div>'}</div>
+  ${Q.mode === "practice" ? (Q.meta.lesson ? '<div class="card cream small">Phần luyện này chỉ gồm câu của bài đang học và có tiến độ <b>riêng</b> (không lẫn với thẻ Luyện tập) nhưng vẫn được tính vào điểm thăng cấp. Một câu sai chỉ được tính là đúng khi trả lời đúng 3 lần ở các phiên khác nhau.</div>' : '<div class="card cream small">Câu trả lời sai sẽ được nhắc lại trong nhóm này và 2 nhóm kế tiếp. Một câu sai chỉ được tính là đúng khi trả lời đúng 3 lần liên tiếp ở các phiên khác nhau.</div>') : ""}<div class="row wrap2"><button class="btn primary grow" data-act="sess-again">🔁 ${Q.mode === "review" ? "Ôn phiên mới" : "Phiên luyện mới"}</button>${Q.mode === "practice" && Q.meta.lesson ? `<a class="btn grow" href="#/lesson/${Q.meta.lesson}">📚 Về bài học</a>` : '<a class="btn grow" href="#/practice">✍️ Luyện tập</a>'}<a class="btn grow" href="#/stats">📊 Thống kê</a></div>`);
 }
 
 /* ============ LUYỆN TẬP ============ */
 const PS = { scope: "rv", only: true };
-function pickType(e) { return e.canOrder && Math.random() < 0.6 ? "order" : "listen"; }
+function pickType(e) { if (e.uid === "bs") return e.canOrder ? "order" : "listen"; return e.canOrder && Math.random() < 0.6 ? "order" : "listen"; }
 function buildPracticeKeys(scope, only) {
   const notOk = e => { const r = S.pq[e.id]; return !r || r.s !== "ok"; };
   let list;
@@ -917,7 +940,7 @@ function buildPracticeKeys(scope, only) {
   else {
     const g = Number(scope); list = trackEx().filter(e => EGRP[e.id] === g && (!only || notOk(e)));
     const have = new Set(list.map(e => e.id));
-    trackEx().forEach(e => { const r = S.pq[e.id], h = EGRP[e.id]; if (r && r.s === "wr" && h < g && g - h <= 2 && !have.has(e.id)) { have.add(e.id); list.push(e); } });
+    trackEx().forEach(e => { const r = S.pq[e.id], h = EGRP[e.id]; if (g < 6 && r && r.s === "wr" && h < g && g - h <= 2 && !have.has(e.id)) { have.add(e.id); list.push(e); } });
   }
   return shuffle(list).map(e => keyOf("e", e.id, pickType(e)));
 }
@@ -976,11 +999,11 @@ function pgPractice() {
   <div class="row" style="margin:4px 0 10px">${mascot()}<div class="bubble grow">Luyện đều đặn, mình sẽ lớn lên cùng bạn nhé! 🌱</div></div>
   ${p ? `<div class="card cream"><b>Phiên đang dở</b><div class="small muted" style="margin:4px 0 10px">${p.scope === "all" ? "Trộn tất cả" : GROUPS[Number(p.scope)][0] + " · " + GROUPS[Number(p.scope)][1]} — câu ${p.i + 1}/${p.keys.length}</div><div class="row"><button class="btn primary grow" data-act="resume-pr">▶ Tiếp tục</button><button class="btn ghost" data-act="rm-pr">Bỏ phiên</button></div></div>` : ""}
   <div class="card"><b>Chọn phạm vi</b><div style="margin-top:6px">
-    ${row("rv", "🔁 Ôn tập · 20 câu", (dueN ? dueU + " cấu trúc cần ôn · ưu tiên câu hay sai, quá hạn, đến hạn" : "Chưa có mục đến hạn · bù bằng kiến thức mới") + " · đạt " + okN(null) + "/" + trackEx().length + (wrAll ? " · " + wrAll + " câu cần nhắc lại" : ""))}
+    ${row("rv", "🔁 Ôn tập · 20 câu", (dueU ? dueU + " câu sai cần ôn · ưu tiên câu sai ở phần luyện" : "Chưa có câu sai · chọn ngẫu nhiên") + " · đạt " + okN(null) + "/" + trackEx().length + (wrAll ? " · " + wrAll + " câu cần nhắc lại" : ""))}
     ${gs.length > 1 ? gs.map(([g, i, n]) => row(String(i), g[0] + " · " + g[1], n + " câu · đạt " + okN(i) + (wrN(i) ? " · " + wrN(i) + " câu cần nhắc lại" : ""))).join("") : ""}</div>
   <label class="row small" style="margin:12px 0;${PS.scope === "rv" ? "display:none" : ""}"><input type="checkbox" id="ponly" ${PS.only ? "checked" : ""} style="width:20px;height:20px"> <span>Chỉ câu chưa đạt (khuyên dùng)</span></label>
   <button class="btn primary block" style="margin-top:${PS.scope === "rv" ? 12 : 0}px" data-act="pstart">${PS.scope === "rv" ? "▶ Bắt đầu ôn tập (20 câu)" : "▶ Bắt đầu luyện tập"}</button></div>
-  <div class="card cream small"><b>Cách hoạt động</b><br><b>🔁 Ôn tập:</b> gói 20 câu trộn ngẫu nhiên các dạng (sắp xếp từ, nghe chọn, công thức), ưu tiên câu hay sai, quá hạn, đến hạn hôm nay rồi mới đến kiến thức mới. Hệ thống tự chấm mức nhớ sau mỗi câu: sai = Quên (ôn lại sau 10 phút) · đúng nhưng chậm = Khó (1 ngày) · đúng = Tốt (3 ngày) · đúng nhanh = Dễ (7 ngày). Lịch ôn này tính riêng với tiến độ của các nhóm bên dưới.<br><br><b>Luyện theo nhóm:</b> mỗi câu có thể ra dạng sắp xếp từ hoặc nghe chọn. Câu sai được hỏi lại ngay trong phiên, rồi nhắc lại ở nhóm đó và 2 nhóm kế tiếp. Câu sai phải trả lời đúng 3 lần liên tiếp (ở các phiên khác nhau) mới được tính là đúng. Bạn có thể thoát và tiếp tục bất cứ lúc nào, kết quả từng câu đều được lưu.<br><br><b>Tiến độ riêng:</b> kết quả ở thẻ này được tính độc lập với phần “Luyện bài này” trong từng bài học.</div>`);
+  <div class="card cream small"><b>Cách hoạt động</b><br><b>🔁 Ôn tập:</b> 20 câu chọn ngẫu nhiên (sắp xếp từ, nghe chọn; không có bài công thức), tập trung vào các câu bạn từng làm sai ở phần Luyện tập và Luyện bài này. Hệ thống tự chấm mức nhớ sau mỗi câu.<br><br><b>Luyện theo nhóm:</b> mỗi câu có thể ra dạng sắp xếp từ hoặc nghe chọn. Câu sai được hỏi lại ngay trong phiên, rồi nhắc lại ở nhóm đó và 2 nhóm kế tiếp. Câu sai phải trả lời đúng 3 lần liên tiếp (ở các phiên khác nhau) mới được tính là đúng. Bạn có thể thoát và tiếp tục bất cứ lúc nào, kết quả từng câu đều được lưu.<br><br><b>Tiến độ riêng:</b> kết quả ở thẻ này tính riêng với phần “Luyện bài này” trong từng bài học, nhưng cả hai đều được tính vào điểm thăng cấp của trái cây. Nhóm 7 · Bổ sung gồm các câu ví dụ từ thẻ từ vựng của bạn.</div>`);
   $("#ponly").addEventListener("change", e => { PS.only = e.target.checked; });
 }
 
@@ -1128,14 +1151,14 @@ function renderTr() {
 function pgVocab() {
   if (!VC.built) buildVocabDeck();
   const cnt = { known: 0, unknown: 0 }; S.vocab.forEach(v => { if (v.k) cnt[v.k]++; });
-  setPage(`<div class="fcp">${fcCatBar()}${S.vocab.length ? fcTool(fcSel("vset", VC.status, cnt), "", "vshuffle", VC.shuffle) : ""}<div id="vcBody" class="fcb"></div></div>`);
+  setPage(`<div class="fcp">${fcCatBar()}<button class="btn sm primary block" data-act="vc-new" style="margin:8px 0">➕ Thêm thẻ từ vựng mới</button>${S.vocab.length ? fcTool(fcSel("vset", VC.status, cnt), "", "vshuffle", VC.shuffle) : ""}<div id="vcBody" class="fcb"></div></div>`);
   renderVc();
 }
 function renderVc() {
   const box = $("#vcBody"); if (!box) return;
   if (!VC.deck.length) {
     box.innerHTML = S.vocab.length ? fcEmpty("Không có từ nào phù hợp bộ lọc.", "vreset", "Bỏ bộ lọc")
-      : '<div class="fcempty">Chưa có từ vựng nào.<br>Vào <a href="#/lessons">Bài học</a>, mở một bài, <b>giữ chọn một từ</b> trong câu ví dụ rồi bấm <b>Thêm vào thẻ từ vựng</b>.</div>';
+      : '<div class="fcempty">Chưa có từ vựng nào.<br>Bấm <b>➕ Thêm thẻ từ vựng mới</b> ở trên, hoặc vào <a href="#/lessons">Bài học</a>, mở một bài, <b>giữ chọn một từ</b> trong câu ví dụ rồi bấm <b>Thêm vào thẻ từ vựng</b>.</div>';
     return;
   }
   VC.i = clamp(VC.i, 0, VC.deck.length - 1);
@@ -1151,27 +1174,48 @@ function vocabLookup(zh, e) {
   if (zh === e.zh.replace(/[，。？！、,.?! ]/g, "")) return { py: e.py, vi: e.vi };
   return { py: "", vi: "" };
 }
-function openAddVocab(c, pref) {
+function openAddVocab(c) {
   const e = EB[c.eid]; if (!e) return;
-  if (!pref && S.vocab.some(v => v.zh === c.zh)) { toast("“" + c.zh + "” đã có trong thẻ từ vựng."); return; }
-  const look = pref || vocabLookup(c.zh, e); let py0 = look.py, vi0 = look.vi, hv0 = pref ? (pref.hv || "") : (HV_DICT[c.zh] || "");
-  const found = !!VOCAB_DICT[c.zh];
-  const body = `<div class="zh" style="font-size:32px;text-align:center">${esc(c.zh)}</div>
-    <label class="tiny muted" for="vPy">Cách đọc (pinyin)</label><input type="text" id="vPy" value="${esc(py0)}" placeholder="ví dụ: túshūguǎn" autocomplete="off">
-    <label class="tiny muted" for="vHv" style="display:block;margin-top:8px">Âm Hán Việt (nếu có)</label><input type="text" id="vHv" value="${esc(hv0)}" placeholder="ví dụ: đồ thư quán" autocomplete="off">
-    <label class="tiny muted" for="vVi" style="display:block;margin-top:8px">Nghĩa</label><input type="text" id="vVi" value="${esc(vi0)}" placeholder="Nhập nghĩa tiếng Việt" autocomplete="off">
-    ${found || py0 || vi0 ? "" : '<div class="tiny muted" style="margin-top:6px">Từ này chưa có sẵn trong từ điển của app, bạn hãy nhập nghĩa (và cách đọc nếu muốn).</div>'}
-    <div class="card cream" style="margin:10px 0 0;padding:10px"><div class="tiny muted">Ví dụ (lấy tự động từ bài học)</div><div class="zh" style="font-size:18px;margin-top:4px;line-height:1.5">${vocabHL(e.zh, c.zh)}</div><div style="color:var(--gd);font-size:13px">${esc(e.py)}</div><div style="margin-top:3px">${esc(e.vi)}</div></div>`;
-  modal("Thêm vào thẻ từ vựng", body, "Thêm", "primary", () => {
-    if (!vi0) { toast("Cần nhập nghĩa của từ."); openAddVocab(c, { py: py0, vi: vi0, hv: hv0 }); return; }
-    S.vocab.unshift({ id: "v" + now().toString(36) + rnd(1e4).toString(36), zh: c.zh, py: py0, hv: hv0, vi: vi0, ex: { id: e.id, zh: e.zh, py: e.py, vi: e.vi }, t: now(), k: "" });
-    save(); VC.built = false; toast("Đã thêm “" + c.zh + "” vào thẻ từ vựng 📝");
+  if (S.vocab.some(v => v.zh === c.zh)) { toast("“" + c.zh + "” đã có trong thẻ từ vựng."); return; }
+  const look = vocabLookup(c.zh, e);
+  openVocabForm({ zh: c.zh, fixed: true, eid: e.id, py: look.py, vi: look.vi, hv: HV_DICT[c.zh] || "", mode: "lesson", exZh: "", exPy: "", exVi: "" });
+}
+function openVocabForm(d) {
+  const les = d.eid && EB[d.eid] ? EB[d.eid] : null;
+  const opt = (v, l) => `<option value="${v}" ${d.mode === v ? "selected" : ""}>${l}</option>`;
+  const lab = (id, t) => `<label class="tiny muted" for="${id}" style="display:block;margin-top:8px">${t}</label>`;
+  const body = `${d.fixed ? `<div class="zh" style="font-size:32px;text-align:center">${esc(d.zh)}</div>` : lab("vZh", "Từ / cụm từ (chữ Hán)") + `<input type="text" id="vZh" value="${esc(d.zh)}" placeholder="ví dụ: 图书馆" autocomplete="off" lang="zh-CN">`}
+    ${lab("vPy", "Cách đọc (pinyin)")}<input type="text" id="vPy" value="${esc(d.py)}" placeholder="ví dụ: túshūguǎn" autocomplete="off">
+    ${lab("vHv", "Âm Hán Việt (nếu có)")}<input type="text" id="vHv" value="${esc(d.hv)}" placeholder="ví dụ: đồ thư quán" autocomplete="off">
+    ${lab("vVi", "Nghĩa")}<input type="text" id="vVi" value="${esc(d.vi)}" placeholder="Nhập nghĩa tiếng Việt" autocomplete="off">
+    ${lab("vMode", "Ví dụ")}<select id="vMode" style="width:100%;padding:10px;border-radius:12px;border:1.5px solid var(--g2);font:inherit;background:#fff">${les ? opt("lesson", "Dùng ví dụ có sẵn trong bài") : ""}${opt("own", "Tự thêm ví dụ")}${opt("none", "Không thêm ví dụ")}</select>
+    <div id="vLes" style="display:${d.mode === "lesson" && les ? "block" : "none"}">${les ? `<div class="card cream" style="margin:8px 0 0;padding:10px"><div class="zh" style="font-size:18px;line-height:1.5">${vocabHL(les.zh, d.zh)}</div><div style="color:var(--gd);font-size:13px">${esc(les.py)}</div><div style="margin-top:3px">${esc(les.vi)}</div></div>` : ""}</div>
+    <div id="vOwn" style="display:${d.mode === "own" ? "block" : "none"}">${lab("vExZh", "Câu ví dụ (chữ Hán, nên chứa từ trên)")}<input type="text" id="vExZh" value="${esc(d.exZh)}" placeholder="ví dụ: 我去图书馆。" autocomplete="off" lang="zh-CN">${lab("vExPy", "Pinyin của câu (không bắt buộc)")}<input type="text" id="vExPy" value="${esc(d.exPy)}" autocomplete="off">${lab("vExVi", "Nghĩa của câu")}<input type="text" id="vExVi" value="${esc(d.exVi)}" placeholder="Tôi đi thư viện." autocomplete="off"></div>
+    <div class="tiny muted" style="margin-top:8px">Từ có ví dụ sẽ tự thành bài sắp xếp câu trong Luyện tập › Nhóm 7 · Bổ sung.</div>`;
+  modal(d.fixed ? "Thêm vào thẻ từ vựng" : "Thêm thẻ từ vựng mới", body, "Thêm", "primary", () => {
+    const zh = (d.zh || "").replace(/\s+/g, ""), bad = m => { toast(m); openVocabForm(d); };
+    if (!zh || !/[\u4e00-\u9fff]/.test(zh)) return bad("Cần nhập từ bằng chữ Hán.");
+    if (S.vocab.some(v => v.zh === zh)) return bad("“" + zh + "” đã có trong thẻ từ vựng.");
+    if (!d.vi) return bad("Cần nhập nghĩa của từ.");
+    let ex = null;
+    if (d.mode === "lesson" && les) ex = { id: les.id, zh: les.zh, py: les.py, vi: les.vi };
+    else if (d.mode === "own") {
+      const z = normZh(d.exZh);
+      if (!z) return bad("Hãy nhập câu ví dụ hoặc chọn “Không thêm ví dụ”.");
+      if (!d.exVi) return bad("Câu ví dụ cần có nghĩa tiếng Việt.");
+      if (!z.includes(zh)) return bad("Câu ví dụ nên chứa từ “" + zh + "”.");
+      ex = { id: "", zh: z, py: d.exPy, vi: d.exVi };
+    }
+    S.vocab.unshift({ id: "v" + now().toString(36) + rnd(1e4).toString(36), zh, py: d.py, hv: d.hv, vi: d.vi, ex, t: now(), k: "" });
+    syncCustom(S.vocab); save(); VC.built = false;
+    toast(ex ? "Đã thêm “" + zh + "” và tạo bài tập ở Nhóm 7 · Bổ sung 📝" : "Đã thêm “" + zh + "” vào thẻ từ vựng 📝");
+    if (/^#\/cards/.test(location.hash) && FC.cat === "v") pgVocab();
   });
-  const ip = $("#vPy"), iv = $("#vVi"), ih = $("#vHv");
-  if (ih) ih.addEventListener("input", () => { hv0 = ih.value.trim(); });
-  if (ip) ip.addEventListener("input", () => { py0 = ip.value.trim(); });
-  if (iv) iv.addEventListener("input", () => { vi0 = iv.value.trim(); });
-  if (iv && !vi0) iv.focus();
+  [["vZh", "zh"], ["vPy", "py"], ["vHv", "hv"], ["vVi", "vi"], ["vExZh", "exZh"], ["vExPy", "exPy"], ["vExVi", "exVi"]].forEach(([id, k]) => { const el = $("#" + id); if (el) el.addEventListener("input", () => { d[k] = el.value.trim(); }); });
+  const iz = $("#vZh");
+  if (iz) iz.addEventListener("input", () => { d.zh = iz.value.trim().replace(/\s+/g, ""); const k = VOCAB_DICT[d.zh]; if (k) [["vPy", "py", k[0]], ["vVi", "vi", k[1]], ["vHv", "hv", HV_DICT[d.zh] || ""]].forEach(([id, f, val]) => { if (val && !d[f]) { d[f] = val; $("#" + id).value = val; } }); });
+  const sm = $("#vMode"); sm.addEventListener("change", () => { d.mode = sm.value; $("#vLes").style.display = d.mode === "lesson" ? "block" : "none"; $("#vOwn").style.display = d.mode === "own" ? "block" : "none"; });
+  const f = $(d.fixed ? "#vVi" : "#vZh"); if (f && !(d.fixed && d.vi)) f.focus();
 }
 function hideSelBar() { const b = $("#selbar"); if (b) b.style.display = "none"; VSEL = null; }
 function checkSelection() {
@@ -1357,9 +1401,10 @@ function act(a, el) {
     }
     case "vc-del": {
       const v = S.vocab.find(x => x.id === VC.deck[VC.i]); if (!v) break;
-      modal("Xóa thẻ từ vựng?", "Thẻ “<b>" + esc(v.zh) + "</b>” sẽ bị xóa.", "Xóa", "bad", () => { S.vocab = S.vocab.filter(x => x.id !== v.id); save(); buildVocabDeck(); pgVocab(); });
+      modal("Xóa thẻ từ vựng?", "Thẻ “<b>" + esc(v.zh) + "</b>” sẽ bị xóa.", "Xóa", "bad", () => { S.vocab = S.vocab.filter(x => x.id !== v.id); const xid = "vx-" + v.id; delete S.pq[xid]; delete S.lp[xid]; delete S.items[keyOf("e", xid, "order")]; delete S.items[keyOf("e", xid, "listen")]; if (S.pr) { S.pr.keys = S.pr.keys.filter(k => k.split(":")[1] !== xid); if (!S.pr.keys.length || S.pr.i >= S.pr.keys.length) S.pr = null; } syncCustom(S.vocab); save(); buildVocabDeck(); pgVocab(); });
       break;
     }
+    case "vc-new": openVocabForm({ zh: "", fixed: false, eid: "", py: "", hv: "", vi: "", mode: "own", exZh: "", exPy: "", exVi: "" }); break;
     case "vocab-add": { const c = VSEL; hideSelBar(); if (c) openAddVocab(c); break; }
     case "export": doExport(); break;
     case "copyjson": {
@@ -1368,7 +1413,7 @@ function act(a, el) {
       else toast("Trình duyệt không cho sao chép. Hãy dùng Xuất JSON."); break;
     }
     case "import": { const f = $("#importFile"); if (f) f.click(); break; }
-    case "reset": modal("Đặt lại toàn bộ dữ liệu?", "Tiến độ, lịch ôn, lịch sử, thẻ từ vựng và đánh dấu bài đã học sẽ bị <b>xóa vĩnh viễn</b>. Nên xuất JSON để sao lưu trước.", "Xóa tất cả", "bad", () => { S = blank(); try { localStorage.removeItem(LS_KEY); } catch (e) { } save(); FC.built = false; toast("Đã đặt lại dữ liệu."); location.hash = "#/home"; route(); }); break;
+    case "reset": modal("Đặt lại toàn bộ dữ liệu?", "Tiến độ, lịch ôn, lịch sử, thẻ từ vựng và đánh dấu bài đã học sẽ bị <b>xóa vĩnh viễn</b>. Nên xuất JSON để sao lưu trước.", "Xóa tất cả", "bad", () => { S = blank(); syncCustom([]); try { localStorage.removeItem(LS_KEY); } catch (e) { } save(); FC.built = false; toast("Đã đặt lại dữ liệu."); location.hash = "#/home"; route(); }); break;
   }
 }
 document.addEventListener("click", e => {
