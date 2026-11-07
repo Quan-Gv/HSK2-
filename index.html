@@ -152,10 +152,11 @@ svg text{font-family:system-ui,sans-serif}
 
 
 /* ===== Trang chủ & mục học ===== */
-.trk{display:flex;gap:12px;align-items:center;width:100%;text-align:left;padding:14px;border:2px solid var(--g2);border-radius:18px;background:#fff;margin:8px 0;cursor:pointer;font:inherit;color:inherit;transition:border-color .2s,background .2s,transform .12s}
-.trk:active{transform:scale(.99)}
-.trk.on{border-color:var(--g4);background:linear-gradient(160deg,#eefaf0,#fff);box-shadow:0 4px 14px rgba(77,179,122,.18)}
-.trk .tic{font-size:32px;line-height:1;width:44px;text-align:center}
+.trk{display:flex;gap:12px;align-items:center;width:100%;text-align:left;padding:14px;border:1px solid var(--g2);border-bottom:4px solid var(--g3);border-radius:18px;background:linear-gradient(180deg,#fff 0%,#f6fbf6 100%);margin:12px 0;cursor:pointer;font:inherit;color:inherit;box-shadow:0 6px 14px rgba(47,125,79,.12),inset 0 1px 0 #fff;transition:transform .12s,box-shadow .12s,border-color .2s,background .2s}
+.trk:active{transform:translateY(3px);border-bottom-width:1px;margin-bottom:15px;box-shadow:0 1px 3px rgba(47,125,79,.12)}
+.trk.on{border-color:var(--g3);border-bottom-color:var(--g4);background:linear-gradient(180deg,#f1fbf3 0%,#dff3e4 100%);box-shadow:0 8px 18px rgba(77,179,122,.22),inset 0 1px 0 #fff}
+.trk .tic{font-size:30px;line-height:1;width:52px;height:52px;display:grid;place-items:center;flex:none;border-radius:15px;background:#fff;border:1px solid var(--g2);box-shadow:0 3px 0 var(--g2),0 4px 8px rgba(47,125,79,.10)}
+.trk.on .tic{border-color:var(--g3);box-shadow:0 3px 0 var(--g3),0 4px 8px rgba(47,125,79,.14)}
 .trk .tt{font-weight:800;font-size:17px;color:var(--gdd)}
 .tstrip{display:flex;justify-content:space-between;align-items:center;gap:8px;background:var(--g1);border:1px solid var(--g2);border-radius:12px;padding:6px 12px;font-size:13px;margin:4px 0 2px;color:var(--gdd)}
 .tstrip a{font-weight:700;text-decoration:none;color:var(--gd)}
@@ -209,6 +210,17 @@ mark.hl{background:#fff1a8;border-radius:4px;padding:0 2px;color:inherit}
 @keyframes spB{0%,20%{opacity:0;transform:rotate(-180deg) scale(.6)}40%,60%{opacity:1;transform:rotate(0) scale(1)}80%,100%{opacity:0;transform:rotate(180deg) scale(.6)}}
 .modal{max-height:90vh;overflow-y:auto}
 .seg.full button{font-size:12.5px;padding:6px 2px}
+nav.tabs{border-top:0;padding-bottom:5px}
+nav.tabs .in{gap:5px;padding:6px 8px 3px}
+nav.tabs .in a{border-radius:12px;min-height:46px;padding:0 1px;background:#fff;border:1px solid var(--g2);box-shadow:none;color:var(--muted);font-weight:700;transition:background .15s,border-color .15s,color .15s}
+nav.tabs .in a:active{transform:scale(.98)}
+nav.tabs .in a.on{background:var(--g1);color:var(--gdd);border-color:var(--g3);box-shadow:none;text-shadow:none}
+nav.tabs .in a.on::after{display:none}
+@media (max-width:380px){nav.tabs .in{gap:4px;padding:6px 5px 3px}nav.tabs .in a{font-size:9.5px;white-space:nowrap}}
+.seg.catseg{background:transparent;padding:0 0 6px;gap:9px;margin:2px 0 10px}
+.seg.catseg button{flex:1;min-height:42px;border-radius:12px;font-size:14px;font-weight:700;padding:6px 4px;color:var(--muted);background:#fff;border:1px solid var(--g2);box-shadow:none;transition:background .15s,border-color .15s,color .15s;letter-spacing:.2px}
+.seg.catseg button:active{transform:scale(.98)}
+.seg.catseg button.on{background:var(--g1);color:var(--gdd);border-color:var(--g3);box-shadow:none}
 .tx .blk{position:relative;padding:10px 38px 10px 8px;border-radius:14px;margin:4px 0;transition:background .2s}
 .tx .blk.cur{background:#fff3c4}
 .tx .h{font-size:26px;line-height:1.75;white-space:pre-wrap;word-break:break-all}
@@ -612,16 +624,36 @@ function trackSummary(t) {
   return { units: TU.length, q: trackEx(t).length, mem: TU.length ? Math.round(mem / TU.length) : 0, learned, due };
 }
 function trackStrip() { const T = TRACKS[TRK()]; return `<div class="tstrip"><span class="row" style="gap:8px">${fruitHTML("sm")}<span>Đang học: <b>${T.name}</b></span></span><a href="#/home">Đổi mục</a></div>`; }
+/* ============ HƯỚNG DẪN 2 NGÀY ĐẦU → THÀNH NGỮ ============ */
+const IDIOMS = [
+  ["天道酬勤", "Tiān dào chóu qín", "Trời không phụ người cần cù."],
+  ["严于律己，宽以待人", "Yán yú lǜ jǐ, kuān yǐ dài rén", "Nghiêm mình, rộng người."],
+  ["退一步海阔天空", "Tuì yī bù hǎi kuò tiān kōng", "Lùi một bước, trời cao biển rộng."],
+  ["但行好事，莫问前程", "Dàn xíng hǎo shì, mò wèn qián chéng", "Cứ làm điều thiện, đừng lo chuyện tương lai."],
+  ["天生我材必有用", "Tiān shēng wǒ cái bì yǒu yòng", "Trời sinh ta ắt có chỗ dùng."],
+  ["走自己的路，让别人说去吧", "Zǒu zìjǐ de lù, ràng biérén shuō qù ba", "Cứ đi con đường mình chọn, mặc người đời bàn tán."],
+  ["海纳百川，有容乃大", "Hǎi nà bǎi chuān, yǒu róng nǎi dà", "Biển dung nạp trăm sông, lòng bao dung mới làm nên sự vĩ đại."],
+  ["不忘初心，方得始终", "Bù wàng chū xīn, fāng dé shǐ zhōng", "Không quên tâm nguyện ban đầu, mới có thể đi đến cuối cùng."],
+  ["静以修身，俭以养德", "Jìng yǐ xiū shēn, jiǎn yǐ yǎng dé", "Lấy tĩnh dưỡng thân, lấy kiệm dưỡng đức."],
+  ["路遥知马力，日久见人心", "Lù yáo zhī mǎ lì, rì jiǔ jiàn rén xīn", "Đường dài mới biết ngựa hay, lâu ngày mới biết lòng người."]
+];
+let IDIOM_PICK = null;
+/* Ngày đầu = ngày tạo dữ liệu (createdAt). Ngày 1–2: hiện hướng dẫn; từ ngày 3: hiện một thành ngữ ngẫu nhiên (mỗi lần mở app chọn lại). */
+function introOn() { return Math.round((sod(now()) - sod(num(S.createdAt, now()))) / DAY) < 2; }
+function idiomBlock() {
+  if (!IDIOM_PICK) IDIOM_PICK = IDIOMS[rnd(IDIOMS.length)];
+  const [z, py, vi] = IDIOM_PICK;
+  return `<div class="zh" lang="zh-CN" style="font-size:20px;line-height:1.4;color:var(--gd)">${esc(z)}</div><div style="color:var(--gd);font-size:13px">${esc(py)}</div><div>${esc(vi)}</div>`;
+}
 function pgHome() {
   const chosen = !!TRACKS[S.nav.track], cur = TRK();
   const card = t => { const T = TRACKS[t], m = trackSummary(t), on = chosen && cur === t;
     return `<button class="trk ${on ? "on" : ""}" data-act="track-set" data-v="${t}" aria-pressed="${on}"><span class="tic">${T.ic}</span><span class="grow"><span class="row sp"><span class="tt">${T.name}</span>${on ? '<span class="pill mastered">Đang chọn</span>' : ""}${m.due ? `<span class="pill review">${m.due} cần ôn</span>` : ""}</span><span class="small muted" style="display:block">${T.desc}</span><span class="tiny muted" style="display:block;margin-top:2px">${m.units} cấu trúc · ${m.q} câu · đã luyện ${m.learned}/${m.units}</span><span class="bar thin" style="display:block;margin-top:6px"><i style="width:${m.mem}%"></i></span></span></button>`; };
   const nl = nextLesson(), due = dueUnitCount();
-  setPage(`<div class="hero"><div class="row">${mascot()}<div class="grow"><h2 class="zh" lang="zh-CN">大家好！</h2><div class="small muted">${chosen ? "Chọn mục học khác bất cứ lúc nào. Mỗi lộ trình có tiến độ riêng; riêng Tổng hợp gồm tất cả nên điểm luyện ở đó cũng được tính cho Cơ bản/Nâng cao, và ngược lại." : "Hãy chọn một mục học để bắt đầu nhé."}</div></div></div></div>
+  setPage(`<div class="hero"><div class="row">${mascot()}<div class="grow"><h2 class="zh" lang="zh-CN">大家好！</h2><div class="small muted">${!chosen ? "Hãy chọn một mục học để bắt đầu nhé." : introOn() ? "Chọn mục học khác bất cứ lúc nào. Mỗi lộ trình có tiến độ riêng; riêng Tổng hợp gồm tất cả nên điểm luyện ở đó cũng được tính cho Cơ bản/Nâng cao, và ngược lại." : idiomBlock()}</div></div></div></div>
   <h2 class="sec">Chọn mục học</h2>
   ${["b", "a", "c"].map(card).join("")}
-  ${chosen ? `<h2 class="sec">Tiếp tục · ${TRACKS[cur].name}</h2><div class="card"><div class="grid2">${nl ? `<a class="btn primary" href="#/lesson/${nl.id}">📚 Bài tiếp</a>` : `<a class="btn" href="#/lessons">📚 Bài học</a>`}<a class="btn" href="#/practice">✍️ Luyện tập${due ? " (" + due + " cần ôn)" : ""}</a></div></div>` : ""}
-  <div class="card cream small"><b>Ba mục học</b><br>🌱 Cơ bản và 🚀 Nâng cao dùng chung 21 cấu trúc ngữ pháp nhưng khác bộ câu ví dụ. 🧩 Tổng hợp gộp tất cả nội dung của hai mục trên cùng phần phân biệt các cấu trúc dễ nhầm (29 bài, 453 câu). Khi chọn một mục, các thẻ Bài học, Luyện tập, Thẻ và Thống kê chỉ hiển thị nội dung của mục đó.</div>`);
+  ${chosen ? `<h2 class="sec">Tiếp tục · ${TRACKS[cur].name}</h2><div class="card"><div class="grid2">${nl ? `<a class="btn primary" href="#/lesson/${nl.id}">📚 Bài tiếp</a>` : `<a class="btn" href="#/lessons">📚 Bài học</a>`}<a class="btn" href="#/practice">✍️ Luyện tập${due ? " (" + due + " cần ôn)" : ""}</a></div></div>` : ""}`);
 }
 /* ============ DANH MỤC ============ */
 const LF = { q: "", st: "all", les: "all" };
@@ -1009,7 +1041,7 @@ function pgPractice() {
   const p = S.pr && S.pr.keys.length && itemInTrack(S.pr.keys[0]) ? S.pr : null;
   const gs = GROUPS.map((g, i) => [g, i, trackEx().filter(e => EGRP[e.id] === i).length]).filter(x => x[2] > 0);
   setPage(`<h2 class="sec" style="margin-top:6px">Luyện tập</h2>
-  <div class="row" style="margin:4px 0 10px">${mascot()}<div class="bubble grow">Luyện đều đặn, mình sẽ lớn lên cùng bạn nhé! 🌱</div></div>
+  <div class="row" style="margin:4px 0 10px">${mascot()}<div class="bubble grow">${introOn() ? "Luyện đều đặn, mình sẽ lớn lên cùng bạn nhé! 🌱" : idiomBlock()}</div></div>
   ${p ? `<div class="card cream"><b>Phiên đang dở</b><div class="small muted" style="margin:4px 0 10px">${p.scope === "all" ? "Trộn tất cả" : GROUPS[Number(p.scope)][0] + " · " + GROUPS[Number(p.scope)][1]} — câu ${p.i + 1}/${p.keys.length}</div><div class="row"><button class="btn primary grow" data-act="resume-pr">▶ Tiếp tục</button><button class="btn ghost" data-act="rm-pr">Bỏ phiên</button></div></div>` : ""}
   <div class="card"><b>Chọn phạm vi</b><div style="margin-top:6px">
     ${row("rv", "🔁 Ôn tập · 20 câu", (dueU ? dueU + " câu sai cần ôn · ưu tiên câu sai ở phần luyện" : "Chưa có câu sai · chọn ngẫu nhiên") + " · đạt " + okN(null) + "/" + trackEx().length + (wrAll ? " · " + wrAll + " câu cần nhắc lại" : ""))}
@@ -1113,7 +1145,7 @@ const VC = { status: "all", shuffle: false, deck: [], i: 0, flip: false, built: 
 let VSEL = null, selTimer = 0;
 function fcCatBar() {
   const b = (v, l) => `<button data-act="fc-cat" data-v="${v}" class="${FC.cat === v ? "on" : ""}" aria-pressed="${FC.cat === v}">${l}</button>`;
-  return `<div class="seg full" role="group" aria-label="Loại thẻ">${b("g", "Ngữ pháp")}${b("v", "Từ vựng (" + S.vocab.length + ")")}${b("t", "Luyện dịch")}${b("x", "Bài khóa (" + S.texts.length + ")")}</div>`;
+  return `<div class="seg full catseg" role="group" aria-label="Loại thẻ">${b("g", "Ngữ pháp")}${b("v", "Từ vựng (" + S.vocab.length + ")")}${b("t", "Luyện dịch")}${b("x", "Bài khóa (" + S.texts.length + ")")}</div>`;
 }
 function fcSel(act, cur, cnt) {
   const o = (v, l) => `<option value="${v}" ${cur === v ? "selected" : ""}>${l}</option>`;
@@ -1381,10 +1413,7 @@ function pgStats() {
   <div class="card"><b>Tốc độ phát âm mặc định</b><div style="margin:6px 0 10px">${rateCtl()}</div>
     <div class="small muted" style="margin-bottom:10px">Giọng: ${TTS.ok ? (TTS.hasZh ? "đã tìm thấy giọng tiếng Trung" : TTS.hasZh === false ? "chưa tìm thấy giọng tiếng Trung trên thiết bị" : "đang kiểm tra…") : "trình duyệt không hỗ trợ"}</div>
     <div style="margin:0 0 14px"><b>Lộ trình học</b><div class="small muted" style="margin:4px 0 8px">Đang học: ${TRACKS[TRK()].ic} ${TRACKS[TRK()].name}</div><div class="grid2"><button class="btn" data-act="track-reselect">↩️ Chọn lại lộ trình</button><button class="btn bad" data-act="track-reset">🔄 Reset lộ trình</button></div></div>
-    <div class="grid2"><button class="btn" data-act="export">⬇️ Xuất JSON</button><button class="btn" data-act="import">⬆️ Nhập JSON</button><button class="btn" data-act="copyjson">📋 Sao chép JSON</button><button class="btn bad" data-act="reset">🗑 Đặt lại dữ liệu</button></div>
-    <input type="file" id="importFile" accept=".json,application/json" class="hide">
-    <div class="tiny muted" style="margin-top:8px">Tiến độ lưu trên trình duyệt (LocalStorage) của thiết bị này, không cần đăng nhập. Hãy xuất JSON để sao lưu hoặc chuyển sang thiết bị khác. Cập nhật file ứng dụng không làm mất dữ liệu nếu mở bằng cùng trình duyệt/cùng đường dẫn.${memOnly ? " <b style=\"color:#a43c3c\">Hiện trình duyệt đang chặn lưu trữ.</b>" : ""}</div></div>
-  <div class="card cream small"><b>Về dữ liệu gốc</b><br>${N_STRUCT} cấu trúc × 20 ví dụ (10 căn bản + 10 nâng cao) từ tài liệu = ${N_STRUCT * 20} câu; ${TOTAL_UNITS - N_STRUCT} mục phân biệt gồm câu từ tài liệu và câu AI bổ sung (có nhãn riêng). Mục lục tài liệu có nêu một số điểm (phó từ tần suất, 跟…一起, 吗/吧, 怎么 + động từ, 怎么/怎么样, câu hỏi ngữ điệu, 怎么 hỏi nguyên nhân, 都) nhưng tài liệu không có phần nội dung riêng cho các điểm này nên ứng dụng chưa có bài tương ứng.</div>`);
+    ${memOnly ? '<div class="tiny" style="margin-top:8px;color:#a43c3c"><b>Hiện trình duyệt đang chặn lưu trữ nên tiến độ sẽ không được lưu.</b></div>' : ""}</div>`);
   const f = $("#importFile"); if (f) f.addEventListener("change", onImportFile);
 }
 function exportObj() { return { app: APP_ID, schema: APP_SCHEMA, exportedAt: new Date().toISOString(), data: S }; }
@@ -1539,7 +1568,7 @@ function act(a, el) {
     case "tx-from": txPlayAt(Number(el.dataset.i)); break;
     case "ws-close": { const w = $("#wsheet"); if (w) w.style.display = "none"; break; }
     case "tx-addw": { const w = WS; const e = $("#wsheet"); if (e) e.style.display = "none"; if (w) addFromText(w.zh, w.bi); break; }
-    case "vocab-add": { const c = VSEL; hideSelBar(); if (c) c.txt ? openWordSheet(c.zh, c.bi) : openAddVocab(c); break; }
+    case "vocab-add": { const c = VSEL; hideSelBar(); if (c) c.txt ? openWordSheet(c.zh, c.bi) : c.gen ? addGeneric(c) : openAddVocab(c); break; }
     case "export": doExport(); break;
     case "copyjson": {
       const txt = JSON.stringify(exportObj());
@@ -1641,7 +1670,7 @@ function route() {
 /* Thẻ (flashcard) không còn tab "Bài khóa" */
 function fcCatBar() {
   const b = (v, l) => `<button data-act="fc-cat" data-v="${v}" class="${FC.cat === v ? "on" : ""}" aria-pressed="${FC.cat === v}">${l}</button>`;
-  return `<div class="seg full" role="group" aria-label="Loại thẻ">${b("g", "Ngữ pháp")}${b("v", "Từ vựng (" + S.vocab.length + ")")}${b("t", "Luyện dịch")}</div>`;
+  return `<div class="seg full catseg" role="group" aria-label="Loại thẻ">${b("g", "Ngữ pháp")}${b("v", "Từ vựng (" + S.vocab.length + ")")}${b("t", "Luyện dịch")}</div>`;
 }
 function pgCards() {
   if (FC.cat === "x") FC.cat = "g";
@@ -1719,7 +1748,7 @@ function pgText(id) {
   setPage(`<div class="bk"><a href="#/texts" class="small">← Bài khóa</a><h2>${esc(t.title)}</h2>
   <div class="tiny muted" style="margin-bottom:6px">Bôi chọn chữ Hán để thêm vào thẻ từ vựng · ▶ để nghe từ câu đó.</div>
   <div class="bkbody nopy novi" id="txBody">${sen}</div>
-  <div class="tbar one"><button class="chip" data-act="bk-tog" data-v="py" aria-label="Hiện/ẩn pinyin">Pinyin</button><button class="chip" data-act="bk-tog" data-v="vi" aria-label="Hiện/ẩn nghĩa">Nghĩa</button>${multi ? '<button class="chip ic" data-act="bk-voice" aria-label="Giọng đọc" title="Giọng đọc">🎙</button>' : ""}<button class="chip ic" data-act="tx-edit" data-id="${t.id}" aria-label="Sửa bài khóa" title="Sửa">✏️</button><span class="tsep"></span><button class="btn primary" id="tPlay" data-act="bk-play" aria-label="Nghe">▶</button><button class="btn rp" data-act="bk-replay" aria-label="Phát lại từ đầu" title="Lại từ đầu">↺</button><select id="tRate" aria-label="Tốc độ đọc">${[0.6, 0.75, 1, 1.25].map(ro).join("")}</select></div></div>`);
+  <div class="tbar one"><button class="chip" data-act="bk-tog" data-v="py" aria-label="Hiện/ẩn pinyin">Pinyin</button><button class="chip" data-act="bk-tog" data-v="vi" aria-label="Hiện/ẩn nghĩa">Nghĩa</button>${multi ? '<button class="chip ic" data-act="bk-voice" aria-label="Giọng đọc" title="Giọng đọc">🎙</button>' : ""}<span class="tsep"></span><button class="btn primary" id="tPlay" data-act="bk-play" aria-label="Nghe">▶</button><button class="btn rp" data-act="bk-replay" aria-label="Phát lại từ đầu" title="Lại từ đầu">↺</button><select id="tRate" aria-label="Tốc độ đọc">${[0.6, 0.75, 1, 1.25].map(ro).join("")}</select></div></div>`);
 }
 
 /* ---------- Trang sửa ---------- */
@@ -1784,14 +1813,21 @@ function txPlayAt(i) {
 /* ---------- Chọn chữ để thêm từ vựng (dùng cấu trúc mới) ---------- */
 function checkSelection() {
   const inTx = /^#\/text\//.test(location.hash);
-  if (!inTx && !/^#\/lesson\//.test(location.hash)) return hideSelBar();
   const sel = window.getSelection(); if (!sel || sel.isCollapsed || !sel.rangeCount) return hideSelBar();
-  const txt = sel.toString().replace(/[\s，。？！、,.?!]+/g, "");
-  if (!txt || txt.length > 12 || !/[\u4e00-\u9fff]/.test(txt) || (inTx && !/^[\u4e00-\u9fff]+$/.test(txt))) return hideSelBar();
+  const txt = sel.toString().replace(/[\s，。？！、；：“”‘’（）…—,.?!;:'"()]+/g, "");
+  if (!txt || txt.length > 12 || !/^[\u4e00-\u9fff]+$/.test(txt)) return hideSelBar();
   const range = sel.getRangeAt(0), a = range.commonAncestorContainer, node = a.nodeType === 1 ? a : a.parentElement;
-  const host = node && node.closest(inTx ? "#txBody .sh" : ".ex .zh"), ex = inTx ? host : host && host.closest(".ex");
-  if (!ex || (!inTx && !EB[ex.dataset.id])) return hideSelBar();
-  VSEL = inTx ? { zh: txt, txt: 1, bi: Number(host.closest(".sen").dataset.bi) } : { zh: txt, eid: ex.dataset.id };
+  if (!node || node.closest('input,textarea,select,.modal-bg,#wsheet,#selbar,[contenteditable="true"]')) return hideSelBar();
+  const th = inTx ? node.closest("#txBody .sh") : null, lex = node.closest(".ex"), lexOk = !inTx && lex && EB[lex.dataset.id] && node.closest(".ex .zh");
+  if (th) VSEL = { zh: txt, txt: 1, bi: Number(th.closest(".sen").dataset.bi) };
+  else if (lexOk) VSEL = { zh: txt, eid: lex.dataset.id };
+  else {
+    /* Bất kỳ chỗ nào khác có chữ Hán: lấy luôn câu chứa từ đó (nếu có) làm ví dụ gợi ý */
+    let sent = ""; const sc = range.startContainer;
+    if (sc.nodeType === 3) { const t = sc.textContent, off = range.startOffset, brk = /[。！？!?\n]/; let s0 = off, e0 = off; while (s0 > 0 && !brk.test(t[s0 - 1])) s0--; while (e0 < t.length && !brk.test(t[e0])) e0++; if (e0 < t.length) e0++; sent = t.slice(s0, e0).trim(); }
+    if (!sent || sent === txt || !sent.includes(txt) || sent.length > 60) sent = "";
+    VSEL = { zh: txt, gen: 1, sent };
+  }
   let bar = $("#selbar");
   if (!bar) { bar = document.createElement("div"); bar.id = "selbar"; bar.innerHTML = '<button type="button" data-act="vocab-add"></button>'; document.body.appendChild(bar); bar.addEventListener("pointerdown", e => e.preventDefault()); bar.addEventListener("mousedown", e => e.preventDefault()); }
   $("button", bar).textContent = "➕ Thêm “" + txt + "” vào thẻ từ vựng";
@@ -1800,12 +1836,17 @@ function checkSelection() {
   let top = r.bottom + 12; if (top > innerHeight - 130) top = r.top - 56; top = clamp(top, 8, innerHeight - 120);
   bar.style.left = clamp(r.left + r.width / 2 - w / 2, 8, Math.max(8, innerWidth - w - 8)) + "px"; bar.style.top = top + "px";
 }
+function addGeneric(c) {
+  if (S.vocab.some(v => v.zh === c.zh)) { toast("“" + c.zh + "” đã có trong thẻ từ vựng."); return; }
+  const d0 = VOCAB_DICT[c.zh];
+  openVocabForm({ zh: c.zh, fixed: true, eid: "", les: null, py: d0 ? d0[0] : "", vi: d0 ? d0[1] : "", hv: HV_DICT[c.zh] || "", mode: "none", exZh: c.sent || "", exPy: "", exVi: "" });
+}
 
 /* ---------- Sự kiện của bài khóa ---------- */
 /* Trong bài khóa, chọn chữ Hán chỉ để thêm vào thẻ từ vựng (không mở bảng tra/nghe từ) */
 document.addEventListener("click", e => {
   const b = e.target.closest && e.target.closest('[data-act="vocab-add"]');
-  if (!b || !/^#\/text\//.test(location.hash)) return;
+  if (!b || !/^#\/text\//.test(location.hash) || !VSEL || !VSEL.txt) return;
   e.stopImmediatePropagation();
   const c = VSEL; hideSelBar(); if (c && c.txt) addFromText(c.zh, c.bi);
 }, true);
@@ -1897,7 +1938,7 @@ function openVoicePanel() {
 document.addEventListener("click", e => { const el = e.target.closest && e.target.closest('[data-act="bk-voice"]'); if (el) openVoicePanel(); });
 
 /* ============ KHỞI ĐỘNG ============ */
-load(); TTS.init();
+load(); try { if (!memOnly && !localStorage.getItem(LS_KEY)) save(); } catch (e) { } TTS.init();
 if (window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches) document.body.classList.add("noanim");
 window.__HSK = { TRK, TRACKS, itemInTrack, exInTrack, trackUnits, trackEx, trackSummary, startPractice, buildPracticeKeys, startLessonPractice, buildLessonKeys, lessonPracStats, pracAnswer, curStage, EGRP, GSIZE, TOTAL_Q, startSession, get S() { return S; }, set S(v) { S = v; }, UNITS, ALLEX, UB, EB, applyRating, statusOf, memPct, rateItem, buildReview, buildPractice, reviewPlan, makeQuestion, itemInfo, keyOf, newRec, get Q() { return Q; }, dayKey, streakDays, unitStats, blank, migrate, save, load: () => load(), TTS };
 route();
