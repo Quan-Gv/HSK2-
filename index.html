@@ -1,11 +1,4 @@
-<!DOCTYPE html>
-<html lang="vi">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#e6f6e8">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="mobile-web-app-capable" content="yes">
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
 <title>HSK 2 Grammar Master</title>
 <style>
 :root{
@@ -229,8 +222,6 @@ mark.hl{background:#fff1a8;border-radius:4px;padding:0 2px;color:inherit}
 textarea.tin{width:100%;border:1.5px solid var(--g2);border-radius:14px;padding:11px 13px;font:inherit;background:#fff;color:var(--ink);resize:vertical;line-height:1.5}
 #wsheet{position:fixed;left:0;right:0;bottom:0;z-index:900;display:none;background:#fff;border-radius:20px 20px 0 0;box-shadow:0 -8px 28px rgba(0,0,0,.22);padding:16px 16px calc(16px + env(safe-area-inset-bottom,0px));max-width:640px;margin:0 auto}
 </style>
-</head>
-<body>
 <div id="splash" role="presentation" aria-label="Màn hình chào"><div class="sf" id="splashFruit"></div><div class="hello" lang="zh-CN">大家好！</div></div>
 <header class="top"><nav class="tabs" aria-label="Điều hướng chính"><div class="in" id="tabs"></div></nav></header>
 <main id="app" class="wrap" aria-live="polite"></main>
@@ -338,6 +329,7 @@ function migrate(o) {
   if (o.days && typeof o.days === "object") for (const k in o.days) if (/^\d{4}-\d\d-\d\d(\|[bac])?$/.test(k)) b.days[k] = { n: Math.max(0, num(o.days[k].n, 0) | 0), c: Math.max(0, num(o.days[k].c, 0) | 0) };
   if (Array.isArray(o.log)) b.log = o.log.slice(-200).filter(x => x && typeof x === "object").map(x => ({ t: num(x.t, 0), mode: String(x.mode || ""), track: ["b", "a", "c"].includes(x.track) ? x.track : "", n: num(x.n, 0) | 0, c: num(x.c, 0) | 0, rt: Array.isArray(x.rt) ? x.rt.slice(0, 4).map(v => num(v, 0) | 0) : [0, 0, 0, 0], units: Array.isArray(x.units) ? x.units.map(String).slice(0, 40) : [], next: num(x.next, 0) }));
   if (o.settings && typeof o.settings === "object") b.settings.rate = [0.75, 1, 1.25].includes(Number(o.settings.rate)) ? Number(o.settings.rate) : 1;
+  if (o.settings && typeof o.settings === "object") { if (typeof o.settings.v1 === "string") b.settings.v1 = o.settings.v1.slice(0, 200); if (typeof o.settings.v2 === "string") b.settings.v2 = o.settings.v2.slice(0, 200); if (typeof o.settings.v3 === "string") b.settings.v3 = o.settings.v3.slice(0, 200); ["pt1", "pt2", "pt3"].forEach(k => { const n = Number(o.settings[k]); if (o.settings[k] !== "" && o.settings[k] != null && isFinite(n) && n >= 0.5 && n <= 1.5) b.settings[k] = Math.round(n * 100) / 100; }); }
   if (o.nav && typeof o.nav.last === "string") b.nav.last = o.nav.last;
   if (o.nav && ["b", "a", "c"].includes(o.nav.track)) b.nav.track = o.nav.track;
   if (o.nav && Number.isInteger(o.nav.stage)) b.nav.stage = clamp(o.nav.stage, 0, 10);
@@ -1587,11 +1579,30 @@ document.addEventListener("visibilitychange", () => { if (document.hidden) save(
 .bkbody{background:var(--card);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);padding:4px}
 .sen{display:flex;gap:8px;align-items:flex-start;padding:10px 8px;border-bottom:1px dashed var(--line);border-radius:12px;transition:background .2s}
 .sen:last-child{border-bottom:0}
-.sen.s1{background:#f4f9fd}
 .sen.cur{background:#eef0ee}
+.sen.cur.s1{background:#fff1bf}
+.sen.cur.s2{background:#fde2ea}
 .wh{margin-bottom:2px}
 .who{display:inline-block;font-size:11px;font-weight:700;padding:1px 8px;border-radius:999px;background:var(--g1);color:var(--gd)}
-.who.s1{background:var(--bluebg);color:#2f6b9c}
+.who.s0{background:#eef0ee;color:#55645b}
+.who.s1{background:#fff1bf;color:#8a6a00}
+.who.s2{background:#fde2ea;color:#a24663}
+.vdot{display:inline-block;width:11px;height:11px;border-radius:50%;margin-right:6px;vertical-align:-1px;border:1px solid rgba(0,0,0,.12)}
+.vdot.s0{background:#eef0ee}.vdot.s1{background:#fff1bf}.vdot.s2{background:#fde2ea}
+.tbar.one{gap:5px;flex-wrap:nowrap}
+.tbar.one>*{min-width:0}
+.tbar.one .chip{flex:none;padding:0 10px;font-size:13px;min-height:38px;white-space:nowrap}
+.tbar.one .chip.ic{width:38px;padding:0;font-size:16px}
+.tbar.one .btn{min-height:38px;border-radius:12px;padding:0 10px;font-size:16px}
+.tbar.one .btn.primary{flex:1;min-width:48px}
+.tbar.one .btn.rp{flex:none;width:38px;padding:0}
+.tbar.one select{flex:none;width:auto;min-height:38px;padding:0 4px;border-radius:12px;font-size:13px}
+.tbar.one .tsep{flex:none;width:1px;height:22px;background:var(--line);margin:0 1px}
+.pitch{display:flex;align-items:center;gap:8px;margin:2px 0 4px}
+.pitch .pl{font-size:12px;color:var(--muted);flex:none}
+.pitch input[type=range]{flex:1;min-width:0;accent-color:var(--g4);height:28px}
+.pitch .pv{width:34px;text-align:right;font-size:13px;font-weight:700;color:var(--gdd);flex:none}
+.pitch .btn.sm{min-height:30px;padding:2px 9px;font-size:12px;flex:none}
 .sen .splay{width:30px;height:30px;min-height:30px;padding:0;border:0;border-radius:50%;background:var(--g1);color:var(--gd);font-size:12px;flex:none;margin-top:2px}
 .sen .sb{flex:1;min-width:0}
 .sh{font-size:20px;line-height:1.6;font-family:"PingFang SC","Hiragino Sans GB","Microsoft YaHei","Noto Sans SC",system-ui,sans-serif;word-break:break-all}
@@ -1670,16 +1681,12 @@ function bkUnits(t) {
     if (dlg && u.nm) { cur = names.indexOf(u.nm); u.h = u.h.replace(BK_SPK, ""); u.p = u.p.replace(BK_PRE, ""); u.v = u.v.replace(BK_PRE, ""); u.who = u.nm; }
     u.spk = dlg ? cur : 0; u.cj = (u.h.match(/[\u4e00-\u9fff]/g) || []).join("");
   });
-  return out.filter(u => u.h);
-}
-function bkVoice(idx) {
-  if (!TTS.ok) return { v: null, pitch: 1 };
-  if (TTS.hasZh === null) TTS.pick();
-  const base = TTS.voice;
-  if (idx % 2 === 0) return { v: base, pitch: 1 };
-  const vs = (speechSynthesis.getVoices() || []).filter(v => /^(zh|cmn)/i.test(v.lang) && v !== base && (!base || v.name !== base.name));
-  const alt = vs.find(v => /^zh[-_]CN/i.test(v.lang)) || vs[0];
-  return alt ? { v: alt, pitch: 1 } : { v: base, pitch: 0.7 };
+  const res = out.filter(u => u.h);
+  if (!dlg) return res;
+  /* Hội thoại: mỗi lượt thoại (từ tên nhân vật đến tên kế tiếp) gộp thành một câu */
+  const turns = [];
+  res.forEach(u => { const p = turns[turns.length - 1]; if (p && p.who && !u.who && p.bi === u.bi) { p.h += u.h; p.p = (p.p + " " + u.p).trim(); p.v = (p.v + " " + u.v).trim(); p.cj += u.cj; } else turns.push(u); });
+  return turns;
 }
 let BK_LEX = null, BK_LEXN = -1;
 function bkLex() {
@@ -1693,8 +1700,8 @@ function bkSenHTML(u, i) {
   const hh = segment(u.h, "", bkLex()).map(tk => { if (!/^[\u4e00-\u9fff]+$/.test(tk)) return esc(tk); const w = wi++; return [...tk].map(c => `<span class="c" data-k="${k++}" data-w="${w}">${esc(c)}</span>`).join(""); }).join("");
   const toks = u.p ? u.p.split(/\s+/).filter(Boolean) : [];
   const pp = toks.map((x, j) => `<span class="pt" data-k="${j}">${esc(x)}</span>`).join(" ");
-  const who = u.who ? `<div class="wh"><span class="who s${u.spk % 2}">${esc(u.who)}</span></div>` : "";
-  return `<div class="sen s${u.spk % 2}" data-i="${i}" data-bi="${u.bi}" data-m="${toks.length}"><button class="splay" data-act="bk-from" data-i="${i}" aria-label="Nghe từ câu này">▶</button><div class="sb">${who}<div class="sh">${hh}</div>${pp ? `<div class="sp">${pp}</div>` : ""}${u.v ? `<div class="sv">${esc(u.v)}</div>` : ""}</div></div>`;
+  const who = u.who ? `<div class="wh"><span class="who s${u.spk % 3}">${esc(u.who)}</span></div>` : "";
+  return `<div class="sen s${u.spk % 3}" data-i="${i}" data-bi="${u.bi}" data-m="${toks.length}"><button class="splay" data-act="bk-from" data-i="${i}" aria-label="Nghe từ câu này">▶</button><div class="sb">${who}<div class="sh">${hh}</div>${pp ? `<div class="sp">${pp}</div>` : ""}${u.v ? `<div class="sv">${esc(u.v)}</div>` : ""}</div></div>`;
 }
 
 /* ---------- Danh sách bài khóa ---------- */
@@ -1707,13 +1714,12 @@ function pgTexts() {
 function pgText(id) {
   const t = textById(id); if (!t) { location.hash = "#/texts"; return; }
   TX.id = id; TX.py = false; TX.vi = false; txStop(); TP.i = 0; TP.silent = false; TP.rate = S.settings.rate || 1;
-  const sen = bkUnits(t).map(bkSenHTML).join("");
+  const U = bkUnits(t), multi = new Set(U.map(u => u.spk)).size > 1; const sen = U.map(bkSenHTML).join("");
   const ro = r => `<option value="${r}" ${TP.rate === r ? "selected" : ""}>${r}×</option>`;
   setPage(`<div class="bk"><a href="#/texts" class="small">← Bài khóa</a><h2>${esc(t.title)}</h2>
-  <div class="bkbar"><button class="chip" data-act="bk-tog" data-v="py">Pinyin</button><button class="chip" data-act="bk-tog" data-v="vi">Nghĩa</button><button class="chip" data-act="tx-edit" data-id="${t.id}">✏️ Sửa</button></div>
   <div class="tiny muted" style="margin-bottom:6px">Bôi chọn chữ Hán để thêm vào thẻ từ vựng · ▶ để nghe từ câu đó.</div>
   <div class="bkbody nopy novi" id="txBody">${sen}</div>
-  <div class="tbar"><button class="btn primary" id="tPlay" data-act="bk-play">▶ Nghe</button><button class="btn" data-act="bk-replay">↺ Lại</button><select id="tRate" aria-label="Tốc độ đọc" style="width:auto">${[0.6, 0.75, 1, 1.25].map(ro).join("")}</select></div></div>`);
+  <div class="tbar one"><button class="chip" data-act="bk-tog" data-v="py" aria-label="Hiện/ẩn pinyin">Pinyin</button><button class="chip" data-act="bk-tog" data-v="vi" aria-label="Hiện/ẩn nghĩa">Nghĩa</button>${multi ? '<button class="chip ic" data-act="bk-voice" aria-label="Giọng đọc" title="Giọng đọc">🎙</button>' : ""}<button class="chip ic" data-act="tx-edit" data-id="${t.id}" aria-label="Sửa bài khóa" title="Sửa">✏️</button><span class="tsep"></span><button class="btn primary" id="tPlay" data-act="bk-play" aria-label="Nghe">▶</button><button class="btn rp" data-act="bk-replay" aria-label="Phát lại từ đầu" title="Lại từ đầu">↺</button><select id="tRate" aria-label="Tốc độ đọc">${[0.6, 0.75, 1, 1.25].map(ro).join("")}</select></div></div>`);
 }
 
 /* ---------- Trang sửa ---------- */
@@ -1722,7 +1728,7 @@ function pgTextEdit() {
   const lab = t => `<label class="tiny muted" style="display:block;margin-top:8px">${t}</label>`;
   const bl = TE.blocks.map((b, i) => `<div class="card" data-bi="${i}"><div style="display:flex;justify-content:space-between;align-items:center"><b>Đoạn ${i + 1}</b><span><button class="btn icon sm" data-act="tx-bins" data-i="${i}" title="Chèn đoạn bên dưới" aria-label="Chèn đoạn bên dưới">➕</button> <button class="btn icon sm" data-act="tx-bdel" data-i="${i}" title="Xóa đoạn" aria-label="Xóa đoạn" ${TE.blocks.length < 2 ? "disabled" : ""}>🗑️</button></span></div>${lab("Chữ Hán")}<textarea class="tin" data-f="h" rows="3" lang="zh-CN">${esc(b.h)}</textarea>${lab("Pinyin")}<textarea class="tin" data-f="p" rows="3">${esc(b.p)}</textarea>${lab("Nghĩa tiếng Việt")}<textarea class="tin" data-f="v" rows="3">${esc(b.v)}</textarea></div>`).join("");
   setPage(`<div class="bk"><a href="#/texts" class="small">← Hủy, quay lại</a><h2>${TE.id ? "Sửa bài khóa" : "Thêm bài khóa"}</h2>${lab("Tiêu đề")}<input type="text" id="txTitle" value="${esc(TE.title)}" placeholder="Ví dụ: Bài 20 – Tôi đi thư viện">${bl}<button class="btn block" data-act="tx-badd">➕ Thêm đoạn</button>
-  <div class="tiny muted" style="margin:8px 0">Có thể dán cả đoạn. App tự tách theo câu (。！？ / . ! ?) và ghép chữ Hán – pinyin – nghĩa theo thứ tự câu, nên số câu của ba ô cần bằng nhau (hoặc mỗi câu một dòng). Nếu không khớp, đoạn đó sẽ hiện nguyên khối. Hội thoại: viết “A：câu nói” (hoặc tên nhân vật trước dấu hai chấm). App không đọc tên nhân vật và đọc nhân vật thứ hai bằng giọng khác.</div>
+  <div class="tiny muted" style="margin:8px 0">Có thể dán cả đoạn. App tự tách theo câu (。！？ / . ! ?) và ghép chữ Hán – pinyin – nghĩa theo thứ tự câu, nên số câu của ba ô cần bằng nhau (hoặc mỗi câu một dòng). Nếu không khớp, đoạn đó sẽ hiện nguyên khối. Hội thoại: viết “A：câu nói” (hoặc tên nhân vật trước dấu hai chấm). App không đọc tên nhân vật; mỗi nhân vật (tối đa 3) có giọng và màu highlight riêng: xám, xanh dương, vàng.</div>
   <div style="display:flex;gap:8px"><button class="btn primary" style="flex:1" data-act="tx-save">💾 Lưu bài khóa</button><button class="btn" data-act="bk-cancel">Hủy</button></div></div>`);
 }
 
@@ -1730,7 +1736,7 @@ function pgTextEdit() {
 function bkClearHl() { document.querySelectorAll("#txBody .on").forEach(x => x.classList.remove("on")); }
 function bkHl() { bkClearHl(); } /* highlight theo câu (nền xám nhạt do .sen.cur), không bôi từng chữ */
 function txUi() {
-  const b = $("#tPlay"); if (b) b.textContent = TP.on ? (TP.paused ? "▶ Tiếp tục" : "⏸ Tạm dừng") : "▶ Nghe";
+  const b = $("#tPlay"); if (b) { const pl = TP.on && !TP.paused; b.textContent = pl ? "⏸" : "▶"; b.setAttribute("aria-label", pl ? "Tạm dừng" : TP.on ? "Tiếp tục" : "Nghe"); }
   document.querySelectorAll("#txBody .sen.cur").forEach(x => x.classList.remove("cur"));
   if (!TP.on) { bkClearHl(); return; }
   const el = $('#txBody .sen[data-i="' + TP.i + '"]');
@@ -1752,7 +1758,7 @@ function txPlayAt(i) {
   /* Mốc thời gian theo trọng số: mỗi chữ Hán = 1, dấu câu thêm thời gian nghỉ; tự hiệu chỉnh theo tốc độ đọc thực của các câu trước */
   const wts = []; for (const ch of u.h) { if (/[\u4e00-\u9fff]/.test(ch)) wts.push(1); else if (wts.length) wts[wts.length - 1] += /[。！？!?]/.test(ch) ? 1.2 : /[，、,；;：:]/.test(ch) ? 0.6 : 0; }
   const starts = []; let tot = 0; wts.forEach(w => { starts.push(tot); tot += w; }); tot = Math.max(1, tot);
-  TP.msw = TP.msw || {}; const key = u.spk % 2, msw = () => (TP.msw[key] || 290) / rate;
+  TP.msw = TP.msw || {}; const key = u.spk % 3, msw = () => (TP.msw[key] || 290) / rate;
   let gotB = false, last = -1, tS = 0;
   const hl = k => { if (g !== TP.gen || k < 0 || k === last) return; last = k; bkHl(i, Math.min(k, n - 1)); };
   const tick = () => { clearInterval(TP.tick); const t1 = Date.now(); hl(0); TP.tick = setInterval(() => { if (g !== TP.gen) { clearInterval(TP.tick); return; } if (gotB) return; const el = Date.now() - t1; let k = 0; for (let j = 0; j < starts.length; j++) { if (starts[j] * msw() <= el) k = j; else break; } hl(Math.min(n - 1, k)); }, 60); };
@@ -1838,6 +1844,58 @@ function unitMem(uid, t) {
   return clamp((S.done[uid] && allLp ? 80 : 0) + (allRv ? 10 : 0) + (allPq ? 10 : 0) - 10 * wrong, 0, 100);
 }
 
+
+/* ---------- Chọn giọng đọc cho bài khóa (giọng 1, giọng 2, tông giọng 2) ---------- */
+function bkVoiceList() { return TTS.ok ? (speechSynthesis.getVoices() || []).filter(v => /^(zh|cmn)/i.test(v.lang)) : []; }
+function bkFind(id) { return id ? (bkVoiceList().find(v => v.voiceURI === id || v.name === id) || null) : null; }
+const BK_PT = [1, 1.1, 0.9];
+function bkPitch(i) { const n = Number(S.settings["pt" + (i + 1)]); return (S.settings["pt" + (i + 1)] !== "" && S.settings["pt" + (i + 1)] != null && isFinite(n) && n >= 0.5 && n <= 1.5) ? n : BK_PT[i]; }
+function bkVoice(idx) {
+  const i = ((idx % 3) + 3) % 3, pitch = bkPitch(i);
+  if (!TTS.ok) return { v: null, pitch };
+  if (TTS.hasZh === null) TTS.pick();
+  const st = S.settings, v1 = bkFind(st.v1) || TTS.voice;
+  if (i === 0) return { v: v1, pitch };
+  return { v: bkFind(st["v" + (i + 1)]) || v1, pitch };
+}
+function bkSample(idx) {
+  if (!TTS.ok) { toast("Trình duyệt này không hỗ trợ phát âm."); return; }
+  const vc = bkVoice(idx);
+  try { speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(["你好，我是小明。", "你好，很高兴认识你。", "大家好，我是小红。"][idx % 3]); u.lang = "zh-CN"; if (vc.v) u.voice = vc.v; u.pitch = vc.pitch; u.rate = S.settings.rate || 1; setTimeout(() => { try { speechSynthesis.speak(u); } catch (e) { } }, 40); } catch (e) { toast("Không phát được âm thanh."); }
+}
+function openVoicePanel() {
+  const vs = bkVoiceList(), st = S.settings;
+  const opt = cur => '<option value="">Tự động</option>' + vs.map(v => `<option value="${esc(v.voiceURI)}" ${cur === v.voiceURI || cur === v.name ? "selected" : ""}>${esc(v.name)} (${esc(v.lang)})</option>`).join("");
+  const fp = n => n.toFixed(2).replace(/0$/, "");
+  const row = (i, lab) => `<div style="margin:12px 0 4px;font-weight:700"><span class="vdot s${i}"></span>${lab}</div>
+    <div class="row"><select id="vp${i + 1}" style="flex:1;min-width:0" aria-label="${lab}">${opt(st["v" + (i + 1)])}</select><button class="btn sm" data-vp="${i}">🔊 Thử</button></div>
+    <div class="pitch"><span class="pl">Tông</span><input type="range" id="pp${i + 1}" min="0.5" max="1.5" step="0.05" value="${bkPitch(i)}" aria-label="Tông giọng ${i + 1}"><span class="pv" id="pv${i + 1}">${fp(bkPitch(i))}</span><button class="btn sm" data-pr="${i}" aria-label="Về mặc định">↺</button></div>`;
+  const bg = document.createElement("div"); bg.className = "modal-bg";
+  bg.innerHTML = `<div class="modal" role="dialog" aria-modal="true"><h3>🎙 Giọng đọc bài khóa</h3>
+    ${vs.length ? "" : '<div class="banner">Thiết bị chưa báo giọng tiếng Trung nào. Hãy cài giọng Trung trong cài đặt hệ thống rồi mở lại bảng này.</div>'}
+    ${row(0, "Giọng 1 (nhân vật đầu / người dẫn)")}${row(1, "Giọng 2 (nhân vật thứ hai)")}${row(2, "Giọng 3 (nhân vật thứ ba)")}
+    <div class="tiny muted" style="margin-top:8px">Mặc định: giọng 1 giữ nguyên (1.0), giọng 2 cao hơn (1.1), giọng 3 trầm hơn (0.9). Kéo thanh trượt để đổi tông. ${vs.length === 1 ? "Máy bạn chỉ có 1 giọng Trung nên các nhân vật được phân biệt bằng tông giọng." : ""}</div>
+    <div class="row" style="justify-content:flex-end;margin-top:14px"><button class="btn primary" data-vp="close">Xong</button></div></div>`;
+  document.body.appendChild(bg);
+  bg.addEventListener("change", e => {
+    const id = e.target.id;
+    if (id === "vp1") S.settings.v1 = e.target.value; else if (id === "vp2") S.settings.v2 = e.target.value; else if (id === "vp3") S.settings.v3 = e.target.value;
+    else if (/^pp[123]$/.test(id)) { S.settings["pt" + id.slice(2)] = Number(e.target.value); } else return;
+    save();
+  });
+  bg.addEventListener("input", e => {
+    const id = e.target.id; if (!/^pp[123]$/.test(id)) return;
+    const n = Number(e.target.value); S.settings["pt" + id.slice(2)] = n; const lb = $("#pv" + id.slice(2)); if (lb) lb.textContent = fp(n);
+  });
+  bg.addEventListener("click", e => {
+    const b = e.target.closest("[data-vp],[data-pr]");
+    if (e.target === bg || (b && b.dataset.vp === "close")) { try { speechSynthesis.cancel(); } catch (x) { } bg.remove(); }
+    else if (b && b.dataset.pr != null) { const i = Number(b.dataset.pr); S.settings["pt" + (i + 1)] = BK_PT[i]; const r = $("#pp" + (i + 1)), lb = $("#pv" + (i + 1)); if (r) r.value = BK_PT[i]; if (lb) lb.textContent = fp(BK_PT[i]); save(); }
+    else if (b && b.dataset.vp != null) bkSample(Number(b.dataset.vp));
+  });
+}
+document.addEventListener("click", e => { const el = e.target.closest && e.target.closest('[data-act="bk-voice"]'); if (el) openVoicePanel(); });
+
 /* ============ KHỞI ĐỘNG ============ */
 load(); TTS.init();
 if (window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches) document.body.classList.add("noanim");
@@ -1854,5 +1912,5 @@ route();
   setTimeout(hide, 1500);
 })();
 </script>
-</body>
-</html>
+
+</body></html>
