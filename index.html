@@ -531,13 +531,18 @@ function appleColor(p) {
   return "rgb(" + a[1].map((v, k) => Math.round(v + (b[1][k] - v) * f)).join(",") + ")";
 }
 /* Linh vật trái cây: tiến hóa theo tỷ lệ trả lời đúng (ngưỡng không hiển thị ở đâu trong giao diện) */
-const FRUITS = [["🍏", 0, 5, .72], ["🍓", 0, 5, .7], ["🥝", 0, 1, .7], ["🍇", 0, -6, .55], ["🍊", 0, 2, .72], ["🍐", 0, 7, .58], ["🥑", 0, 7, .58], ["🍑", 0, 2, .7], ["🥭", 0, 2, .66], ["🍍", 0, 9, .5], ["🍉", 0, 0, .8]];
 function curStage() { const ok = new Set(); [S.pq, S.lp].forEach(P => { for (const k in P) if (P[k].s === "ok" && EB[k] && EB[k].uid !== "bs") ok.add(k); }); return clamp(Math.floor(ok.size * 10 / TOTAL_Q), 0, 10); }
+/* ===== LINH VẬT: emoji trái cây + khuôn mặt đối xứng ===== */
+/* [emoji, dx, dy, scale, rotate] — dx/dy tính theo thang 100, tâm mặt mặc định (50,56) */
+const FRUITS = [["🍏",0,-2,0.84,1],["🍓",4,1.5,0.74,-30],["🥝",15.5,17,0.84,0],["🍇",-10,-13,1.14,-30],["🍊",0,-5,0.8,0],["🍐",0,-11.5,0.55,0],["🥑",20,-20,0.7,30],["🍑",14,-20,0.8,0],["🥭",0,-13.5,0.84,-13],["🍍",0.5,-1.5,0.62,0],["🍉",-9,-20,0.72,-30]];
+const MASCOT_NAMES = ["Táo xanh","Dâu tây","Kiwi","Nho","Cam","Lê","Bơ","Đào","Xoài","Dứa","Dưa hấu"];
 function faceSvg(i, cheer) {
-  const f = FRUITS[i];
-  const eyes = cheer ? '<path class="feyes" d="M26 47Q34 35 42 47M58 47Q66 35 74 47" fill="none" stroke="#3b2626" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>' : '<path d="M26 47Q34 35 42 47M58 47Q66 35 74 47" fill="none" stroke="#3b2626" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/>';
-  const mouth = cheer ? '<path d="M36 55Q50 80 64 55Z" fill="#3b2626" stroke="#3b2626" stroke-width="3" stroke-linejoin="round"/><path d="M42 67Q50 61 58 67Q50 74 42 67Z" fill="#ff8fa3"/>' : '<path d="M41 58Q50 67 59 58" fill="none" stroke="#3b2626" stroke-width="5" stroke-linecap="round"/>';
-  return `<svg class="fface" viewBox="0 0 100 100" aria-hidden="true" style="transform:translate(${f[1]}%,${f[2]}%) scale(${f[3]})"><ellipse cx="22" cy="58" rx="7" ry="4.5" fill="#ff8fa3" opacity=".65"/><ellipse cx="78" cy="58" rx="7" ry="4.5" fill="#ff8fa3" opacity=".65"/>${eyes}${mouth}</svg>`;
+  const f = FRUITS[clamp(i | 0, 0, 10)], ink = "#3b2626", pink = "#ff8fa3";
+  const eyes = `<g class="${cheer ? "feyes" : ""}"><path d="M-24 0Q-16 -12 -8 0M8 0Q16 -12 24 0" fill="none" stroke="${ink}" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/></g>`;
+  const mouth = cheer
+    ? `<path d="M-14 8Q0 38 14 8Z" fill="${ink}" stroke="${ink}" stroke-width="3" stroke-linejoin="round"/><path d="M-7 20Q0 14 7 20Q0 26 -7 20Z" fill="${pink}"/>`
+    : `<path d="M-10 10Q0 20 10 10" fill="none" stroke="${ink}" stroke-width="5" stroke-linecap="round"/>`;
+  return `<svg class="fface" viewBox="0 0 100 100" aria-hidden="true"><g transform="translate(${50 + f[1]} ${56 + f[2]}) rotate(${f[4]}) scale(${f[3]})"><ellipse cx="-29" cy="9" rx="7" ry="4.5" fill="${pink}" opacity=".7"/><ellipse cx="29" cy="9" rx="7" ry="4.5" fill="${pink}" opacity=".7"/>${eyes}${mouth}</g></svg>`;
 }
 function cheerMascots() {
   document.querySelectorAll(".fruit").forEach(el => {
