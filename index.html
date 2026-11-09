@@ -382,7 +382,7 @@ let S, memOnly = false;
 const THEMES = [{ id: "green", name: "Xanh nhạt", c: "#9ad8ac" }, { id: "pink", name: "Hồng nhạt", c: "#eda6bf" }, { id: "blue", name: "Xanh dương nhạt", c: "#98c3ec" }, { id: "lemon", name: "Vàng chanh nhạt", c: "#d9d36a" }];
 function applyTheme() { const t = (S && S.settings && S.settings.theme) || "green"; if (t === "green") document.documentElement.removeAttribute("data-theme"); else document.documentElement.setAttribute("data-theme", t); }
 function blank() {
-  return { app: APP_ID, schema: APP_SCHEMA, createdAt: now(), items: {}, units: {}, cards: {}, done: {}, types: {}, days: {}, log: [], settings: { rate: 1, theme: "green", hideOpts: false, bkHintId: "", vc: ["", ""] }, nav: { last: null, stage: 0, track: null }, pq: {}, pr: null, psid: 0, vocab: [], lp: {}, rv: {}, texts: [] };
+  return { app: APP_ID, schema: APP_SCHEMA, createdAt: now(), items: {}, units: {}, cards: {}, done: {}, types: {}, days: {}, log: [], settings: { rate: 1, theme: "green", hideOpts: false, bkHintId: "" }, nav: { last: null, stage: 0, track: null }, pq: {}, pr: null, psid: 0, vocab: [], lp: {}, rv: {}, texts: [] };
 }
 function num(x, d) { x = Number(x); return isFinite(x) ? x : d; }
 function sanitizeRec(r) {
@@ -400,7 +400,7 @@ function migrate(o) {
   if (o.days && typeof o.days === "object") for (const k in o.days) if (/^\d{4}-\d\d-\d\d(\|[bac])?$/.test(k)) b.days[k] = { n: Math.max(0, num(o.days[k].n, 0) | 0), c: Math.max(0, num(o.days[k].c, 0) | 0) };
   if (Array.isArray(o.log)) b.log = o.log.slice(-200).filter(x => x && typeof x === "object").map(x => ({ t: num(x.t, 0), mode: String(x.mode || ""), track: ["b", "a", "c"].includes(x.track) ? x.track : "", n: num(x.n, 0) | 0, c: num(x.c, 0) | 0, rt: Array.isArray(x.rt) ? x.rt.slice(0, 4).map(v => num(v, 0) | 0) : [0, 0, 0, 0], units: Array.isArray(x.units) ? x.units.map(String).slice(0, 40) : [], next: num(x.next, 0) }));
   if (o.settings && typeof o.settings === "object") b.settings.rate = [0.75, 1, 1.25].includes(Number(o.settings.rate)) ? Number(o.settings.rate) : 1;
-  if (o.settings && typeof o.settings === "object") { b.settings.hideOpts = !!o.settings.hideOpts; if (typeof o.settings.bkHintId === "string") b.settings.bkHintId = o.settings.bkHintId; if (Array.isArray(o.settings.vc)) b.settings.vc = [String(o.settings.vc[0] || ""), String(o.settings.vc[1] || "")]; }
+  if (o.settings && typeof o.settings === "object") { b.settings.hideOpts = !!o.settings.hideOpts; if (typeof o.settings.bkHintId === "string") b.settings.bkHintId = o.settings.bkHintId; }
   if (o.settings && typeof o.settings === "object") b.settings.theme = THEMES.some(t => t.id === o.settings.theme) ? o.settings.theme : "green";
   if (o.settings && typeof o.settings === "object") { if (typeof o.settings.v1 === "string") b.settings.v1 = o.settings.v1.slice(0, 200); if (typeof o.settings.v2 === "string") b.settings.v2 = o.settings.v2.slice(0, 200); if (typeof o.settings.v3 === "string") b.settings.v3 = o.settings.v3.slice(0, 200); ["pt1", "pt2", "pt3"].forEach(k => { const n = Number(o.settings[k]); if (o.settings[k] !== "" && o.settings[k] != null && isFinite(n) && n >= 0.5 && n <= 1.5) b.settings[k] = Math.round(n * 100) / 100; }); }
   if (o.nav && typeof o.nav.last === "string") b.nav.last = o.nav.last;
@@ -1416,7 +1416,6 @@ function pgStats() {
   <div class="card"><b>Màu giao diện</b><div class="chips" style="margin:8px 0 12px">${THEMES.map(t => `<button class="chip ${(S.settings.theme || "green") === t.id ? "on" : ""}" data-act="set-theme" data-id="${t.id}" aria-pressed="${(S.settings.theme || "green") === t.id}"><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${t.c};border:1px solid rgba(0,0,0,.15);margin-right:6px;vertical-align:-1px"></span>${t.name}</button>`).join("")}</div>
     <b>Tốc độ phát âm mặc định</b><div style="margin:6px 0 10px">${rateCtl()}</div>
     <div class="small muted" style="margin-bottom:10px">Giọng: ${TTS.ok ? (TTS.hasZh ? "đã tìm thấy giọng tiếng Trung" : TTS.hasZh === false ? "chưa tìm thấy giọng tiếng Trung trên thiết bị" : "đang kiểm tra…") : "trình duyệt không hỗ trợ"}</div>
-    ${bkVoiceSection()}
     <div style="margin:0 0 14px"><b>Lộ trình học</b><div class="small muted" style="margin:4px 0 8px">Đang học: ${TRACKS[TRK()].ic} ${TRACKS[TRK()].name}</div><div class="grid2"><button class="btn" data-act="track-reselect">↩️ Chọn lại lộ trình</button><button class="btn bad" data-act="track-reset">🔄 Reset lộ trình</button></div></div>
     ${memOnly ? '<div class="tiny" style="margin-top:8px;color:#a43c3c"><b>Hiện trình duyệt đang chặn lưu trữ nên tiến độ sẽ không được lưu.</b></div>' : ""}</div>`);
   const f = $("#importFile"); if (f) f.addEventListener("change", onImportFile);
@@ -1466,12 +1465,6 @@ function sessRate(r) {
 function act(a, el) {
   switch (a) {
     case "set-theme": { const id = el.dataset.id; if (THEMES.some(t => t.id === id)) { S.settings.theme = id; applyTheme(); save(); document.querySelectorAll('[data-act="set-theme"]').forEach(b => { const on = b.dataset.id === id; b.classList.toggle("on", on); b.setAttribute("aria-pressed", on); }); } break; }
-    case "vc-test": {
-      if (!TTS.ok) { toast("Trình duyệt này không hỗ trợ phát âm."); break; }
-      const sp = bkVoiceSpec(Number(el.dataset.slot));
-      try { speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance("你好！很高兴认识你。"); u.lang = (sp.v && sp.v.lang) || "zh-CN"; if (sp.v) u.voice = sp.v; u.pitch = sp.pitch; u.rate = S.settings.rate || 1; speechSynthesis.speak(u); } catch (e) { }
-      break;
-    }
     case "goto-settings": { const el = $("#dataSec"); if (el) el.scrollIntoView({ behavior: "smooth", block: "start" }); break; }
     case "speak": TTS.speak(el.dataset.zh, el); break;
     case "hide-tog": { S.settings.hideOpts = !S.settings.hideOpts; save(); if (Q && Q.q && (Q.q.type === "listen" || Q.q.type === "order") && !Q.q.answered) { Q.q.revealed = false; refreshSession(); } break; }
@@ -1763,7 +1756,7 @@ function bkSenHTML(u, i) {
   const toks = u.p ? u.p.split(/\s+/).filter(Boolean) : [];
   const pp = toks.map((x, j) => `<span class="pt" data-k="${j}">${esc(x)}</span>`).join(" ");
   const who = u.who ? `<div class="wh"><span class="who s${u.spk % 3}">${esc(u.who)}</span></div>` : "";
-  return `<div class="sen s${u.spk % 3}" data-spk="${u.spk}" data-i="${i}" data-bi="${u.bi}" data-m="${toks.length}"><button class="splay" data-act="bk-from" data-i="${i}" aria-label="Nghe từ câu này">▶</button><div class="sb">${who}<div class="sh">${hh}</div>${pp ? `<div class="sp">${pp}</div>` : ""}${u.v ? `<div class="sv">${esc(u.v)}</div>` : ""}</div></div>`;
+  return `<div class="sen s${u.spk % 3}" data-spk="${u.spk}" data-i="${i}" data-bi="${u.bi}" data-m="${toks.length}"><button class="splay" data-act="bk-from" data-i="${i}" aria-label="Nghe câu này">▶</button><div class="sb">${who}<div class="sh">${hh}</div>${pp ? `<div class="sp">${pp}</div>` : ""}${u.v ? `<div class="sv">${esc(u.v)}</div>` : ""}</div></div>`;
 }
 
 /* ---------- Danh sách bài khóa ---------- */
@@ -1782,7 +1775,7 @@ function pgText(id) {
   const roleBar = R.multi ? `<div class="bkbar" id="bkRoles"><span class="small muted" style="align-self:center">Vai của bạn:</span><button class="chip on" data-act="bk-role" data-r="-1">🎧 Chỉ nghe</button>${R.mains.map((sp, k) => `<button class="chip" data-act="bk-role" data-r="${k}">🎤 ${esc(R.nm[sp] || ("Vai " + (k + 1)))}</button>`).join("")}</div>` : "";
   const ro = r => `<option value="${r}" ${TP.rate === r ? "selected" : ""}>${r}×</option>`;
   setPage(`<div class="bk"><a href="#/texts" class="small">← Bài khóa</a><h2>${esc(t.title)}</h2>
-  <div class="tiny muted" style="margin-bottom:6px">Bôi chọn chữ Hán để thêm vào thẻ từ vựng · ▶ để nghe từ câu đó.</div>
+  <div class="tiny muted" style="margin-bottom:6px">Bôi chọn chữ Hán để thêm vào thẻ từ vựng · ▶ cạnh câu để nghe riêng câu đó.</div>
   ${hint}${roleBar}<div class="bkbody nopy novi" id="txBody">${sen}</div>
   <div class="tbar one"><button class="chip" data-act="bk-tog" data-v="py" aria-label="Hiện/ẩn pinyin">Pinyin</button><button class="chip" data-act="bk-tog" data-v="vi" aria-label="Hiện/ẩn nghĩa">Nghĩa</button><span class="tsep"></span><button class="btn primary" id="tPlay" data-act="bk-play" aria-label="Nghe">▶</button><button class="btn rp" data-act="bk-replay" aria-label="Phát lại từ đầu" title="Lại từ đầu">↺</button><select id="tRate" aria-label="Tốc độ đọc">${[0.6, 0.75, 1, 1.25].map(ro).join("")}</select></div></div>`);
 }
@@ -1812,11 +1805,11 @@ function txStop() {
   try { if (TTS.ok) speechSynthesis.cancel(); } catch (e) { }
   txUi();
 }
-function txPlayAt(i) {
+function txPlayAt(i, once) {
   const t = textById(TX.id); if (!t) return;
   const U = bkUnits(t), R = bkRoles(U);
   if (i >= U.length) { txStop(); TP.i = 0; return; }
-  const g = ++TP.gen; TP.i = i; TP.on = true; TP.paused = false;
+  const g = ++TP.gen; TP.i = i; TP.on = true; TP.paused = false; TP.once = !!once;
   clearTimeout(TP.timer); clearTimeout(TP.wd); clearInterval(TP.tick);
   txUi(); bkClearHl();
   const u = U[i], n = Math.max(1, u.cj.length), rate = TP.rate || 1, text = u.h.replace(/\s+/g, " ").trim();
@@ -1827,7 +1820,7 @@ function txPlayAt(i) {
   let gotB = false, last = -1, tS = 0;
   const hl = k => { if (g !== TP.gen || k < 0 || k === last) return; last = k; bkHl(i, Math.min(k, n - 1)); };
   const tick = () => { clearInterval(TP.tick); const t1 = Date.now(); hl(0); TP.tick = setInterval(() => { if (g !== TP.gen) { clearInterval(TP.tick); return; } if (gotB) return; const el = Date.now() - t1; let k = 0; for (let j = 0; j < starts.length; j++) { if (starts[j] * msw() <= el) k = j; else break; } hl(Math.min(n - 1, k)); }, 60); };
-  const next = () => { clearInterval(TP.tick); if (g === TP.gen && TP.on && !TP.paused) txPlayAt(i + 1); };
+  const next = () => { clearInterval(TP.tick); if (g !== TP.gen || !TP.on || TP.paused) return; if (once) { /* ▶ cạnh câu: đọc đúng một câu rồi dừng; ▶ thanh dưới sẽ đọc tiếp từ câu kế */ TP.on = false; TP.paused = false; TP.once = false; TP.i = i + 1 >= U.length ? 0 : i + 1; clearTimeout(TP.timer); clearTimeout(TP.wd); txUi(); return; } txPlayAt(i + 1); };
   /* Lượt của người học: app không đọc; ô thoại chạy màu trái → phải trong (tốc độ 0.7 + 3 giây). Chạm vào ô thoại để sang câu sau. */
   if (R.multi && TX.role >= 0 && R.mains[TX.role] === u.spk) {
     try { if (TTS.ok) speechSynthesis.cancel(); } catch (e) { }
@@ -1843,8 +1836,7 @@ function txPlayAt(i) {
   if (!TTS.ok || TP.silent || !txVoiceOk()) { silent(); return; }
   try {
     speechSynthesis.cancel();
-    const sl = R.multi ? R.mains.indexOf(u.spk) : 0, sp = bkVoiceSpec(sl < 0 ? 2 : sl);
-    const ut = new SpeechSynthesisUtterance(text); ut.lang = (sp.v && sp.v.lang) || "zh-CN"; if (sp.v) ut.voice = sp.v; ut.pitch = sp.pitch; ut.rate = rate;
+    const ut = new SpeechSynthesisUtterance(text); ut.lang = "zh-CN"; if (TTS.voice) ut.voice = TTS.voice; ut.pitch = (!R.multi || R.mains.includes(u.spk)) ? 1 : 0.9; ut.rate = rate;
     let started = false; const t0 = Date.now();
     ut.onstart = () => { started = true; tS = Date.now(); clearTimeout(TP.wd); tick(); };
     ut.onboundary = ev => { if (g !== TP.gen || (ev.name && ev.name !== "word")) return; gotB = true; hl((text.slice(0, ev.charIndex).match(/[\u4e00-\u9fff]/g) || []).length); };
@@ -1904,7 +1896,7 @@ document.addEventListener("click", e => {
     document.querySelectorAll("#bkRoles .chip").forEach(b => b.classList.toggle("on", b === el));
     const R = bkRoles(bkUnits(textById(TX.id) || { blocks: [] })), me = TX.role >= 0 ? R.mains[TX.role] : -1;
     document.querySelectorAll("#txBody .sen").forEach(x => x.classList.toggle("mine", Number(x.dataset.spk) === me));
-    if (TP.on && !TP.paused) txPlayAt(TP.i);
+    if (TP.on && !TP.paused) txPlayAt(TP.i, TP.once);
   } else if (a === "bk-tog") {
     const v = el.dataset.v; TX[v] = !TX[v];
     const b = $("#txBody"); if (b) b.classList.toggle(v === "py" ? "nopy" : "novi", !TX[v]);
@@ -1915,7 +1907,7 @@ document.addEventListener("click", e => {
     else if (!TP.paused) { TP.paused = true; TP.gen++; clearTimeout(TP.timer); clearTimeout(TP.wd); clearInterval(TP.tick); try { speechSynthesis.cancel(); } catch (x) { } txUi(); }
     else txPlayAt(TP.i);
   } else if (a === "bk-replay") txPlayAt(0);
-  else if (a === "bk-from") txPlayAt(Number(el.dataset.i));
+  else if (a === "bk-from") txPlayAt(Number(el.dataset.i), true);
   else if (a === "bk-cancel") { TE.blocks = []; location.hash = "#/texts"; }
   else if (a === "bk-del") {
     const t = textById(el.dataset.id);
@@ -1925,7 +1917,7 @@ document.addEventListener("click", e => {
 
 /* Chạm vào ô thoại của mình để sang câu tiếp (bỏ qua khi đang bôi chọn chữ) */
 document.addEventListener("click", e => {
-  if (!TP.on || TP.paused || !e.target.closest) return;
+  if (!TP.on || TP.paused || TP.once || !e.target.closest) return;
   const sen = e.target.closest("#txBody .sen.me.cur"); if (!sen || e.target.closest("button,a")) return;
   const sl = window.getSelection(); if (sl && !sl.isCollapsed) return;
   clearTimeout(TP.timer); txPlayAt(TP.i + 1);
@@ -1945,52 +1937,6 @@ function unitMem(uid, t) {
   return clamp((S.done[uid] && allLp ? 80 : 0) + (allRv ? 10 : 0) + (allPq ? 10 : 0) - 10 * wrong, 0, 100);
 }
 
-
-/* ---------- Giọng đọc cho 2 nhân vật chính ---------- */
-/* Giọng tiếng Trung phổ thông có trên máy (bỏ Quảng Đông/yue); giọng mặc định đứng đầu */
-function bkZhVoices() {
-  if (!TTS.ok) return [];
-  if (TTS.hasZh === null) TTS.pick();
-  const seen = new Set(), out = [];
-  [TTS.voice].concat(speechSynthesis.getVoices() || []).forEach(v => {
-    if (!v || !/^(zh|cmn)/i.test(v.lang) || /(HK|yue)/i.test(v.lang + " " + v.name)) return;
-    const id = v.voiceURI || v.name; if (seen.has(id)) return; seen.add(id); out.push(v);
-  });
-  return out;
-}
-/* 5 lựa chọn: giọng gốc, tối đa 4 giọng thật khác của máy, rồi bù bằng tông cao/trầm của giọng gốc nếu còn thiếu */
-function bkVoiceOpts() {
-  const short = v => v.name.replace(/^(Microsoft|Google)\s+/, "").replace(/\s+-\s+.*$/, "");
-  const out = [{ k: "o", label: TTS.voice ? "Giọng gốc: " + short(TTS.voice) : "Giọng gốc của máy", v: TTS.voice, pitch: 1 }];
-  bkZhVoices().forEach(v => {
-    if (v === TTS.voice || out.length >= 5) return;
-    out.push({ k: "v:" + (v.voiceURI || v.name), label: short(v) + " (" + v.lang + ")" + (v.localService === false ? " · cần mạng" : ""), v, pitch: 1 });
-  });
-  [["p:1.08", "Giọng gốc · tông cao nhẹ", 1.08], ["p:0.92", "Giọng gốc · tông trầm nhẹ", 0.92], ["p:1.15", "Giọng gốc · tông cao hơn", 1.15], ["p:0.85", "Giọng gốc · tông trầm hơn", 0.85]].forEach(f => {
-    if (out.length < 5) out.push({ k: f[0], label: f[1], v: TTS.voice, pitch: f[2] });
-  });
-  return out;
-}
-/* slot 0/1 = nhân vật chính 1/2 (theo thứ tự xuất hiện); slot 2 = nhân vật nền (giọng gốc, tông 0.9) */
-function bkVoiceSpec(slot) {
-  if (slot === 2) return { k: "bg", v: TTS.voice, pitch: 0.9 };
-  const opts = bkVoiceOpts(), key = (S.settings.vc || [])[slot];
-  let o = opts.find(x => x.k === key);
-  if (!o) o = slot === 1 ? (opts.find(x => x.k.startsWith("v:")) || opts[0]) : opts[0];
-  if (o.v && o.v !== TTS.voice && o.v.localService === false && !navigator.onLine) o = opts[0];
-  return o;
-}
-function bkVoiceSection() {
-  if (!TTS.ok) return "";
-  const opts = bkVoiceOpts(), nv = bkZhVoices().length;
-  const row = sl => { const cur = bkVoiceSpec(sl).k; return `<div style="display:flex;gap:8px;align-items:center;margin:6px 0"><span class="small" style="flex:none;width:92px">Nhân vật ${sl + 1}</span><select data-vcslot="${sl}" aria-label="Giọng nhân vật chính ${sl + 1}" style="flex:1;min-width:0;padding:9px 8px;border-radius:12px;border:1.5px solid rgba(0,0,0,.15);font:inherit;background:inherit;color:inherit">${opts.map(o => `<option value="${esc(o.k)}" ${o.k === cur ? "selected" : ""}>${esc(o.label)}</option>`).join("")}</select><button class="btn sm" data-act="vc-test" data-slot="${sl}" aria-label="Nghe thử nhân vật ${sl + 1}">🔊</button></div>`; };
-  return `<div style="margin:0 0 14px"><b>Giọng đọc bài khóa</b><div class="small muted" style="margin:4px 0 6px">Hai nhân vật chính theo thứ tự xuất hiện trong bài. Máy có ${nv} giọng tiếng Trung.${nv < 2 ? " Chỉ có 1 giọng nên hai nhân vật dễ giống nhau: hãy cài thêm giọng tiếng Trung trong cài đặt hệ thống (iPhone: Cài đặt › Trợ năng › Nội dung được đọc › Giọng nói; Android: cài đặt giọng đọc của Google) hoặc chọn tông cao/trầm nhẹ." : ""}</div>${row(0)}${row(1)}</div>`;
-}
-document.addEventListener("change", e => {
-  const el = e.target; if (!el || !el.dataset || el.dataset.vcslot === undefined) return;
-  const sl = Number(el.dataset.vcslot); const a = Array.isArray(S.settings.vc) ? S.settings.vc.slice(0, 2) : ["", ""];
-  a[sl] = el.value; S.settings.vc = a; save();
-});
 
 /* ---------- Vai trong hội thoại bài khóa ---------- */
 /* Hai nhân vật chính = hai người có nhiều lượt thoại nhất; nhân vật từ thứ ba trở đi là nhân vật nền (giọng tông 0.9) */
