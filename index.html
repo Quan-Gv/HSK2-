@@ -379,7 +379,7 @@ let S, memOnly = false;
 const THEMES = [{ id: "green", name: "Xanh nhạt", c: "#9ad8ac" }, { id: "pink", name: "Hồng nhạt", c: "#eda6bf" }, { id: "blue", name: "Xanh dương nhạt", c: "#98c3ec" }, { id: "lemon", name: "Vàng chanh nhạt", c: "#d9d36a" }];
 function applyTheme() { const t = (S && S.settings && S.settings.theme) || "green"; if (t === "green") document.documentElement.removeAttribute("data-theme"); else document.documentElement.setAttribute("data-theme", t); }
 function blank() {
-  return { app: APP_ID, schema: APP_SCHEMA, createdAt: now(), items: {}, units: {}, cards: {}, done: {}, types: {}, days: {}, log: [], settings: { rate: 1, theme: "green" }, nav: { last: null, stage: 0, track: null }, pq: {}, pr: null, psid: 0, vocab: [], lp: {}, rv: {}, texts: [] };
+  return { app: APP_ID, schema: APP_SCHEMA, createdAt: now(), items: {}, units: {}, cards: {}, done: {}, types: {}, days: {}, log: [], settings: { rate: 1, theme: "green", hideOpts: false, bkHintId: "" }, nav: { last: null, stage: 0, track: null }, pq: {}, pr: null, psid: 0, vocab: [], lp: {}, rv: {}, texts: [] };
 }
 function num(x, d) { x = Number(x); return isFinite(x) ? x : d; }
 function sanitizeRec(r) {
@@ -397,6 +397,7 @@ function migrate(o) {
   if (o.days && typeof o.days === "object") for (const k in o.days) if (/^\d{4}-\d\d-\d\d(\|[bac])?$/.test(k)) b.days[k] = { n: Math.max(0, num(o.days[k].n, 0) | 0), c: Math.max(0, num(o.days[k].c, 0) | 0) };
   if (Array.isArray(o.log)) b.log = o.log.slice(-200).filter(x => x && typeof x === "object").map(x => ({ t: num(x.t, 0), mode: String(x.mode || ""), track: ["b", "a", "c"].includes(x.track) ? x.track : "", n: num(x.n, 0) | 0, c: num(x.c, 0) | 0, rt: Array.isArray(x.rt) ? x.rt.slice(0, 4).map(v => num(v, 0) | 0) : [0, 0, 0, 0], units: Array.isArray(x.units) ? x.units.map(String).slice(0, 40) : [], next: num(x.next, 0) }));
   if (o.settings && typeof o.settings === "object") b.settings.rate = [0.75, 1, 1.25].includes(Number(o.settings.rate)) ? Number(o.settings.rate) : 1;
+  if (o.settings && typeof o.settings === "object") { b.settings.hideOpts = !!o.settings.hideOpts; if (typeof o.settings.bkHintId === "string") b.settings.bkHintId = o.settings.bkHintId; }
   if (o.settings && typeof o.settings === "object") b.settings.theme = THEMES.some(t => t.id === o.settings.theme) ? o.settings.theme : "green";
   if (o.settings && typeof o.settings === "object") { if (typeof o.settings.v1 === "string") b.settings.v1 = o.settings.v1.slice(0, 200); if (typeof o.settings.v2 === "string") b.settings.v2 = o.settings.v2.slice(0, 200); if (typeof o.settings.v3 === "string") b.settings.v3 = o.settings.v3.slice(0, 200); ["pt1", "pt2", "pt3"].forEach(k => { const n = Number(o.settings[k]); if (o.settings[k] !== "" && o.settings[k] != null && isFinite(n) && n >= 0.5 && n <= 1.5) b.settings[k] = Math.round(n * 100) / 100; }); }
   if (o.nav && typeof o.nav.last === "string") b.nav.last = o.nav.last;
@@ -936,9 +937,7 @@ function ratingHTML(q) {
 function autoRating(q) {
   if (q.type === "card") return 2;
   if (!q.ok) return 0;
-  const dt = (q.elapsed || (now() - q.t0)) / 1000;
-  const lim = q.type === "order" ? [3 * q.e.ch.length + 4, 8 * q.e.ch.length + 8] : q.type === "listen" ? [10, 22] : [12, 30];
-  return dt <= lim[0] ? 3 : dt <= lim[1] ? 2 : 1;
+  return 2; // Đúng = mức "tốt"; không chấm theo thời gian
 }
 function revealBox(e) {
   const u = UB[e.uid];
@@ -949,18 +948,23 @@ function renderOrder(q) {
   const e = q.e, pickedHTML = q.picked.map((id, k) => `<button class="tok in-ans" data-act="ord-rm" data-i="${k}" ${q.answered ? "disabled" : ""} aria-label="Bỏ chọn ${esc(e.ch[id])}">${esc(e.ch[id])}</button>`).join("");
   const bank = q.bank.map(id => `<button class="tok ${q.picked.includes(id) ? "used" : ""}" data-act="ord-pick" data-i="${id}" ${q.answered || q.picked.includes(id) ? "disabled" : ""}>${esc(e.ch[id])}</button>`).join("");
   const full = q.picked.length === e.ch.length;
+  const hideB = !!S.settings.hideOpts && !q.answered && !q.revealed;
+  const bankBox = hideB ? `<div class="card cream" style="text-align:center;margin:8px 0 0;grid-column:1/-1;width:100%"><div class="small muted" style="margin-bottom:8px">Các cụm từ đang được ẩn. Hãy tự dịch câu tiếng Việt sang tiếng Trung trong đầu, rồi bấm để xem và ghép.</div><button class="btn primary block" data-act="opts-show" style="min-height:50px;font-size:16px">👁 Hiện các cụm từ</button></div>` : bank;
   return `<div class="card"><div class="small muted">Sắp xếp các cụm từ thành câu đúng:</div><div style="font-size:19px;font-weight:700;margin:4px 0 10px">${esc(e.vi)}</div>
+  <div style="margin:0 0 10px"><button class="chip ${S.settings.hideOpts ? "on" : ""}" data-act="hide-tog" aria-pressed="${!!S.settings.hideOpts}">🙈 Ẩn các cụm từ để tự dịch trước</button></div>
   <div class="ans ${q.answered ? (q.ok ? "ok" : "bad") : ""}" aria-label="Câu của bạn">${pickedHTML ? pickedHTML + (e.fp ? `<span class="zh" style="font-size:20px;align-self:center;padding:0 4px;color:var(--muted)">${e.fp}</span>` : "") : '<span class="muted small" style="padding:8px">Chạm vào các cụm bên dưới để ghép câu…</span>'}</div>
-  <div class="bank" aria-label="Các cụm từ">${bank}</div>
+  <div class="bank" aria-label="Các cụm từ">${bankBox}</div>
   ${q.answered ? "" : `<div class="row wrap2" style="margin-top:12px"><button class="btn" data-act="ord-undo" ${q.picked.length ? "" : "disabled"}>↩ Hoàn tác</button><button class="btn" data-act="ord-reset" ${q.picked.length ? "" : "disabled"}>🔄 Làm lại</button><span class="grow"></span><button class="btn primary" data-act="ord-check" ${full ? "" : "disabled"}>✓ Kiểm tra</button></div>`}</div>
   ${q.answered ? `<div class="fb ${q.ok ? "ok" : "bad"} ${q.ok ? "pop" : "shake"}">${q.ok ? "✅ Chính xác!" : "❌ Chưa đúng."}${q.ok ? (q.alt ? `<div class="small" style="font-weight:500;margin-top:4px">Cách ghép của bạn cũng đúng. Câu mẫu trong tài liệu: <span class="zh">${esc(e.zh)}</span></div>` : "") : `<div class="zh mid" style="color:var(--ink);font-weight:500;margin-top:4px">Đáp án: ${esc(e.zh)}</div><div class="small" style="font-weight:500;margin-top:2px">Bạn ghép: ${esc(q.picked.map(i => e.ch[i]).join("") + (e.fp || ""))}</div>${e.src === "vx" ? `<button class="btn sm" data-act="ord-accept" style="margin-top:6px">✋ Cách xếp của tôi cũng đúng</button>` : ""}${e.alt && e.alt.length ? `<div class="tiny" style="font-weight:500;margin-top:4px">Cũng chấp nhận: ${esc(e.alt.join(" · "))}</div>` : ""}`}</div>${revealBox(e)}${ratingHTML(q)}` : ""}`;
 }
 function renderListen(q) {
   const e = q.e;
-  const opts = q.options.map((o, i) => `<button class="opt ${q.mode === "zh" ? "zh" : ""} ${q.answered ? "locked " + (o.ok ? "right" : (q.sel === i ? "wrong" : "")) : ""}" data-act="opt" data-i="${i}">${esc(o.t)}</button>`).join("");
+  const hide = !!S.settings.hideOpts && !q.answered && !q.revealed;
+  const opts = hide ? `<div class="card cream" style="text-align:center;margin:8px 0 0"><div class="small muted" style="margin-bottom:8px">Đáp án đang được ẩn. Hãy nghe trước rồi bấm để xem các lựa chọn.</div><button class="btn primary block" data-act="opts-show" style="min-height:50px;font-size:16px">👁 Hiện đáp án</button></div>` : q.options.map((o, i) => `<button class="opt ${q.mode === "zh" ? "zh" : ""} ${q.answered ? "locked " + (o.ok ? "right" : (q.sel === i ? "wrong" : "")) : ""}" data-act="opt" data-i="${i}">${esc(o.t)}</button>`).join("");
   return `<div class="card"><div class="small muted">Nghe câu tiếng Trung rồi chọn ${q.mode === "vi" ? "nghĩa tiếng Việt" : "câu tiếng Trung"} đúng:</div>
   <div class="row" style="margin:10px 0"><button class="btn primary" data-act="speak" data-zh="${esc(e.zh)}" style="flex:1;min-height:54px;font-size:18px">🔊 Nghe</button><button class="btn" data-act="speak" data-zh="${esc(e.zh)}">🔁 Nghe lại</button></div>
-  <div class="row sp small"><span class="muted">Tốc độ</span>${rateCtl()}</div>${opts}</div>
+  <div class="row sp small"><span class="muted">Tốc độ</span>${rateCtl()}</div>
+  <div style="margin:10px 0 8px"><button class="chip ${S.settings.hideOpts ? "on" : ""}" data-act="hide-tog" aria-pressed="${!!S.settings.hideOpts}">🙈 Ẩn đáp án để nghe và tự dịch trước</button></div>${opts}</div>
   ${q.answered ? `<div class="fb ${q.ok ? "ok" : "bad"} ${q.ok ? "pop" : "shake"}">${q.ok ? "✅ Chính xác!" : "❌ Chưa đúng."}</div>${revealBox(e)}${ratingHTML(q)}` : ""}`;
 }
 function renderFormula(q) {
@@ -1352,7 +1356,7 @@ function openVocabForm(d) {
   const f = $(d.fixed ? "#vVi" : "#vZh"); if (f && !(d.fixed && d.vi)) f.focus();
 }
 /* ============ BÀI KHÓA ============ */
-const TX = { id: "", py: false, vi: false }, TE = { id: "", title: "", blocks: [] }, TP = { on: false, paused: false, i: 0, gen: 0, silent: false, timer: 0, wd: 0, rate: 1 };
+const TX = { id: "", py: false, vi: false, role: -1 }, TE = { id: "", title: "", blocks: [] }, TP = { on: false, paused: false, i: 0, gen: 0, silent: false, timer: 0, wd: 0, rate: 1 };
 let WS = null;
 function textById(id) { return S.texts.find(t => t.id === id); }
 function pgTexts() {
@@ -1552,6 +1556,8 @@ function act(a, el) {
     case "set-theme": { const id = el.dataset.id; if (THEMES.some(t => t.id === id)) { S.settings.theme = id; applyTheme(); save(); document.querySelectorAll('[data-act="set-theme"]').forEach(b => { const on = b.dataset.id === id; b.classList.toggle("on", on); b.setAttribute("aria-pressed", on); }); } break; }
     case "goto-settings": { const el = $("#dataSec"); if (el) el.scrollIntoView({ behavior: "smooth", block: "start" }); break; }
     case "speak": TTS.speak(el.dataset.zh, el); break;
+    case "hide-tog": { S.settings.hideOpts = !S.settings.hideOpts; save(); if (Q && Q.q && (Q.q.type === "listen" || Q.q.type === "order") && !Q.q.answered) { Q.q.revealed = false; refreshSession(); } break; }
+    case "opts-show": { const q = Q && Q.q; if (!q || q.answered) break; q.revealed = true; refreshSession(); break; }
     case "rate-set": {
       S.settings.rate = Number(el.dataset.r); save();
       document.querySelectorAll('[data-act="rate-set"]').forEach(b => { const on = Number(b.dataset.r) === S.settings.rate; b.classList.toggle("on", on); b.setAttribute("aria-pressed", on); });
@@ -1712,8 +1718,6 @@ document.addEventListener("visibilitychange", () => { if (document.hidden) save(
 .who.s0{background:#eef0ee;color:#55645b}
 .who.s1{background:#fff1bf;color:#8a6a00}
 .who.s2{background:#fde2ea;color:#a24663}
-.vdot{display:inline-block;width:11px;height:11px;border-radius:50%;margin-right:6px;vertical-align:-1px;border:1px solid rgba(0,0,0,.12)}
-.vdot.s0{background:#eef0ee}.vdot.s1{background:#fff1bf}.vdot.s2{background:#fde2ea}
 .tbar.one{gap:5px;flex-wrap:nowrap}
 .tbar.one>*{min-width:0}
 .tbar.one .chip{flex:none;padding:0 10px;font-size:13px;min-height:38px;white-space:nowrap}
@@ -1723,11 +1727,17 @@ document.addEventListener("visibilitychange", () => { if (document.hidden) save(
 .tbar.one .btn.rp{flex:none;width:38px;padding:0}
 .tbar.one select{flex:none;width:auto;min-height:38px;padding:0 4px;border-radius:12px;font-size:13px}
 .tbar.one .tsep{flex:none;width:1px;height:22px;background:var(--line);margin:0 1px}
-.pitch{display:flex;align-items:center;gap:8px;margin:2px 0 4px}
-.pitch .pl{font-size:12px;color:var(--muted);flex:none}
-.pitch input[type=range]{flex:1;min-width:0;accent-color:var(--g4);height:28px}
-.pitch .pv{width:34px;text-align:right;font-size:13px;font-weight:700;color:var(--gdd);flex:none}
-.pitch .btn.sm{min-height:30px;padding:2px 9px;font-size:12px;flex:none}
+.bkhint{background:var(--g1);color:var(--gd);border-radius:12px;padding:8px 10px;margin:0 0 8px;line-height:1.5}
+.sen{position:relative;overflow:hidden}
+.sen>*{position:relative;z-index:1}
+.sen.me::before{content:"";position:absolute;left:0;top:0;bottom:0;right:0;transform-origin:left center;transform:scaleX(0);background:#eef0ee;z-index:0;pointer-events:none}
+.sen.me.s1::before{background:#fff1bf}
+.sen.me.s2::before{background:#fde2ea}
+.sen.me.cur.s0,.sen.me.cur.s1,.sen.me.cur.s2{background:transparent}
+.sen.me.cur::before{animation:bksweep var(--dur,6s) linear forwards}
+@keyframes bksweep{to{transform:scaleX(1)}}
+.sen.mine .who::after{content:" · Bạn"}
+.sen.me.cur .who::after{content:" · Đến lượt bạn 🎤"}
 .sen .splay{width:30px;height:30px;min-height:30px;padding:0;border:0;border-radius:50%;background:var(--g1);color:var(--gd);font-size:12px;flex:none;margin-top:2px}
 .sen .sb{flex:1;min-width:0}
 .sh{font-size:20px;line-height:1.6;font-family:"PingFang SC","Hiragino Sans GB","Microsoft YaHei","Noto Sans SC",system-ui,sans-serif;word-break:break-all}
@@ -1826,7 +1836,7 @@ function bkSenHTML(u, i) {
   const toks = u.p ? u.p.split(/\s+/).filter(Boolean) : [];
   const pp = toks.map((x, j) => `<span class="pt" data-k="${j}">${esc(x)}</span>`).join(" ");
   const who = u.who ? `<div class="wh"><span class="who s${u.spk % 3}">${esc(u.who)}</span></div>` : "";
-  return `<div class="sen s${u.spk % 3}" data-i="${i}" data-bi="${u.bi}" data-m="${toks.length}"><button class="splay" data-act="bk-from" data-i="${i}" aria-label="Nghe từ câu này">▶</button><div class="sb">${who}<div class="sh">${hh}</div>${pp ? `<div class="sp">${pp}</div>` : ""}${u.v ? `<div class="sv">${esc(u.v)}</div>` : ""}</div></div>`;
+  return `<div class="sen s${u.spk % 3}" data-spk="${u.spk}" data-i="${i}" data-bi="${u.bi}" data-m="${toks.length}"><button class="splay" data-act="bk-from" data-i="${i}" aria-label="Nghe từ câu này">▶</button><div class="sb">${who}<div class="sh">${hh}</div>${pp ? `<div class="sp">${pp}</div>` : ""}${u.v ? `<div class="sv">${esc(u.v)}</div>` : ""}</div></div>`;
 }
 
 /* ---------- Danh sách bài khóa ---------- */
@@ -1839,12 +1849,15 @@ function pgTexts() {
 function pgText(id) {
   const t = textById(id); if (!t) { location.hash = "#/texts"; return; }
   TX.id = id; TX.py = false; TX.vi = false; txStop(); TP.i = 0; TP.silent = false; TP.rate = S.settings.rate || 1;
-  const U = bkUnits(t), multi = new Set(U.map(u => u.spk)).size > 1; const sen = U.map(bkSenHTML).join("");
+  const U = bkUnits(t), R = bkRoles(U); TX.role = -1; const sen = U.map(bkSenHTML).join("");
+  let hint = "";
+  if (R.multi) { if (!S.settings.bkHintId) { S.settings.bkHintId = id; save(); } if (S.settings.bkHintId === id) hint = `<div class="bkhint tiny">💡 Chọn vai của bạn rồi bấm ▶. Đến lượt vai đó, ô thoại sẽ chạy màu từ trái sang phải: hãy đọc to câu thoại trong thời gian ấy. Đọc xong sớm thì chạm vào ô thoại để sang câu tiếp. Chọn “Chỉ nghe” để nghe cả bài.</div>`; }
+  const roleBar = R.multi ? `<div class="bkbar" id="bkRoles"><span class="small muted" style="align-self:center">Vai của bạn:</span><button class="chip on" data-act="bk-role" data-r="-1">🎧 Chỉ nghe</button>${R.mains.map((sp, k) => `<button class="chip" data-act="bk-role" data-r="${k}">🎤 ${esc(R.nm[sp] || ("Vai " + (k + 1)))}</button>`).join("")}</div>` : "";
   const ro = r => `<option value="${r}" ${TP.rate === r ? "selected" : ""}>${r}×</option>`;
   setPage(`<div class="bk"><a href="#/texts" class="small">← Bài khóa</a><h2>${esc(t.title)}</h2>
   <div class="tiny muted" style="margin-bottom:6px">Bôi chọn chữ Hán để thêm vào thẻ từ vựng · ▶ để nghe từ câu đó.</div>
-  <div class="bkbody nopy novi" id="txBody">${sen}</div>
-  <div class="tbar one"><button class="chip" data-act="bk-tog" data-v="py" aria-label="Hiện/ẩn pinyin">Pinyin</button><button class="chip" data-act="bk-tog" data-v="vi" aria-label="Hiện/ẩn nghĩa">Nghĩa</button>${multi ? '<button class="chip ic" data-act="bk-voice" aria-label="Giọng đọc" title="Giọng đọc">🎙</button>' : ""}<span class="tsep"></span><button class="btn primary" id="tPlay" data-act="bk-play" aria-label="Nghe">▶</button><button class="btn rp" data-act="bk-replay" aria-label="Phát lại từ đầu" title="Lại từ đầu">↺</button><select id="tRate" aria-label="Tốc độ đọc">${[0.6, 0.75, 1, 1.25].map(ro).join("")}</select></div></div>`);
+  ${hint}${roleBar}<div class="bkbody nopy novi" id="txBody">${sen}</div>
+  <div class="tbar one"><button class="chip" data-act="bk-tog" data-v="py" aria-label="Hiện/ẩn pinyin">Pinyin</button><button class="chip" data-act="bk-tog" data-v="vi" aria-label="Hiện/ẩn nghĩa">Nghĩa</button><span class="tsep"></span><button class="btn primary" id="tPlay" data-act="bk-play" aria-label="Nghe">▶</button><button class="btn rp" data-act="bk-replay" aria-label="Phát lại từ đầu" title="Lại từ đầu">↺</button><select id="tRate" aria-label="Tốc độ đọc">${[0.6, 0.75, 1, 1.25].map(ro).join("")}</select></div></div>`);
 }
 
 /* ---------- Trang sửa ---------- */
@@ -1853,7 +1866,7 @@ function pgTextEdit() {
   const lab = t => `<label class="tiny muted" style="display:block;margin-top:8px">${t}</label>`;
   const bl = TE.blocks.map((b, i) => `<div class="card" data-bi="${i}"><div style="display:flex;justify-content:space-between;align-items:center"><b>Đoạn ${i + 1}</b><span><button class="btn icon sm" data-act="tx-bins" data-i="${i}" title="Chèn đoạn bên dưới" aria-label="Chèn đoạn bên dưới">➕</button> <button class="btn icon sm" data-act="tx-bdel" data-i="${i}" title="Xóa đoạn" aria-label="Xóa đoạn" ${TE.blocks.length < 2 ? "disabled" : ""}>🗑️</button></span></div>${lab("Chữ Hán")}<textarea class="tin" data-f="h" rows="3" lang="zh-CN">${esc(b.h)}</textarea>${lab("Pinyin")}<textarea class="tin" data-f="p" rows="3">${esc(b.p)}</textarea>${lab("Nghĩa tiếng Việt")}<textarea class="tin" data-f="v" rows="3">${esc(b.v)}</textarea></div>`).join("");
   setPage(`<div class="bk"><a href="#/texts" class="small">← Hủy, quay lại</a><h2>${TE.id ? "Sửa bài khóa" : "Thêm bài khóa"}</h2>${lab("Tiêu đề")}<input type="text" id="txTitle" value="${esc(TE.title)}" placeholder="Ví dụ: Bài 20 – Tôi đi thư viện">${bl}<button class="btn block" data-act="tx-badd">➕ Thêm đoạn</button>
-  <div class="tiny muted" style="margin:8px 0">Có thể dán cả đoạn. App tự tách theo câu (。！？ / . ! ?) và ghép chữ Hán – pinyin – nghĩa theo thứ tự câu, nên số câu của ba ô cần bằng nhau (hoặc mỗi câu một dòng). Nếu không khớp, đoạn đó sẽ hiện nguyên khối. Hội thoại: viết “A：câu nói” (hoặc tên nhân vật trước dấu hai chấm). App không đọc tên nhân vật; mỗi nhân vật (tối đa 3) có giọng và màu highlight riêng: xám, xanh dương, vàng.</div>
+  <div class="tiny muted" style="margin:8px 0">Có thể dán cả đoạn. App tự tách theo câu (。！？ / . ! ?) và ghép chữ Hán – pinyin – nghĩa theo thứ tự câu, nên số câu của ba ô cần bằng nhau (hoặc mỗi câu một dòng). Nếu không khớp, đoạn đó sẽ hiện nguyên khối. Hội thoại: viết “A：câu nói” (hoặc tên nhân vật trước dấu hai chấm). App không đọc tên nhân vật. Người học có thể chọn đóng một trong hai nhân vật chính (nhiều lượt thoại nhất); nhân vật chính còn lại đọc bằng giọng gốc, nhân vật thứ ba trở đi là nhân vật nền với giọng trầm hơn. Mỗi nhân vật có màu ô thoại riêng: xám, vàng, hồng.</div>
   <div style="display:flex;gap:8px"><button class="btn primary" style="flex:1" data-act="tx-save">💾 Lưu bài khóa</button><button class="btn" data-act="bk-cancel">Hủy</button></div></div>`);
 }
 
@@ -1863,6 +1876,7 @@ function bkHl() { bkClearHl(); } /* highlight theo câu (nền xám nhạt do .s
 function txUi() {
   const b = $("#tPlay"); if (b) { const pl = TP.on && !TP.paused; b.textContent = pl ? "⏸" : "▶"; b.setAttribute("aria-label", pl ? "Tạm dừng" : TP.on ? "Tiếp tục" : "Nghe"); }
   document.querySelectorAll("#txBody .sen.cur").forEach(x => x.classList.remove("cur"));
+  document.querySelectorAll("#txBody .sen.me").forEach(x => x.classList.remove("me"));
   if (!TP.on) { bkClearHl(); return; }
   const el = $('#txBody .sen[data-i="' + TP.i + '"]');
   if (el) { el.classList.add("cur"); try { el.scrollIntoView({ block: "center", behavior: "smooth" }); } catch (e) { } }
@@ -1874,7 +1888,7 @@ function txStop() {
 }
 function txPlayAt(i) {
   const t = textById(TX.id); if (!t) return;
-  const U = bkUnits(t);
+  const U = bkUnits(t), R = bkRoles(U);
   if (i >= U.length) { txStop(); TP.i = 0; return; }
   const g = ++TP.gen; TP.i = i; TP.on = true; TP.paused = false;
   clearTimeout(TP.timer); clearTimeout(TP.wd); clearInterval(TP.tick);
@@ -1888,6 +1902,14 @@ function txPlayAt(i) {
   const hl = k => { if (g !== TP.gen || k < 0 || k === last) return; last = k; bkHl(i, Math.min(k, n - 1)); };
   const tick = () => { clearInterval(TP.tick); const t1 = Date.now(); hl(0); TP.tick = setInterval(() => { if (g !== TP.gen) { clearInterval(TP.tick); return; } if (gotB) return; const el = Date.now() - t1; let k = 0; for (let j = 0; j < starts.length; j++) { if (starts[j] * msw() <= el) k = j; else break; } hl(Math.min(n - 1, k)); }, 60); };
   const next = () => { clearInterval(TP.tick); if (g === TP.gen && TP.on && !TP.paused) txPlayAt(i + 1); };
+  /* Lượt của người học: app không đọc; ô thoại chạy màu trái → phải trong (tốc độ 0.7 + 3 giây). Chạm vào ô thoại để sang câu sau. */
+  if (R.multi && TX.role >= 0 && R.mains[TX.role] === u.spk) {
+    try { if (TTS.ok) speechSynthesis.cancel(); } catch (e) { }
+    const vals = Object.values(TP.msw || {}), base = vals.length ? vals.reduce((x, y) => x + y, 0) / vals.length : 290, dur = Math.round(tot * base / 0.7 + 3000);
+    const el = $('#txBody .sen[data-i="' + i + '"]');
+    if (el) { el.style.setProperty("--dur", dur + "ms"); el.classList.remove("me"); void el.offsetWidth; el.classList.add("me"); }
+    clearTimeout(TP.timer); TP.timer = setTimeout(next, dur); return;
+  }
   const silent = () => {
     if (!TP.silent) { TP.silent = true; toast("Thiết bị chưa phát được giọng tiếng Trung (hoặc đang offline) — bài khóa chạy highlight không có tiếng."); }
     tick(); clearTimeout(TP.timer); TP.timer = setTimeout(next, Math.max(1000, tot * msw() + 400));
@@ -1895,7 +1917,7 @@ function txPlayAt(i) {
   if (!TTS.ok || TP.silent || !txVoiceOk()) { silent(); return; }
   try {
     speechSynthesis.cancel();
-    const ut = new SpeechSynthesisUtterance(text), vc = bkVoice(u.spk); ut.lang = "zh-CN"; if (vc.v) ut.voice = vc.v; ut.pitch = vc.pitch; ut.rate = rate;
+    const ut = new SpeechSynthesisUtterance(text); ut.lang = "zh-CN"; if (TTS.voice) ut.voice = TTS.voice; ut.pitch = (!R.multi || R.mains.includes(u.spk)) ? 1 : 0.9; ut.rate = rate;
     let started = false; const t0 = Date.now();
     ut.onstart = () => { started = true; tS = Date.now(); clearTimeout(TP.wd); tick(); };
     ut.onboundary = ev => { if (g !== TP.gen || (ev.name && ev.name !== "word")) return; gotB = true; hl((text.slice(0, ev.charIndex).match(/[\u4e00-\u9fff]/g) || []).length); };
@@ -1949,7 +1971,14 @@ document.addEventListener("click", e => {
 document.addEventListener("click", e => {
   const el = e.target.closest && e.target.closest("[data-act^='bk-']"); if (!el) return;
   const a = el.dataset.act;
-  if (a === "bk-tog") {
+  if (TX.role >= 0 && (a === "bk-play" || a === "bk-replay" || a === "bk-from")) bkUnlock();
+  if (a === "bk-role") {
+    TX.role = Number(el.dataset.r);
+    document.querySelectorAll("#bkRoles .chip").forEach(b => b.classList.toggle("on", b === el));
+    const R = bkRoles(bkUnits(textById(TX.id) || { blocks: [] })), me = TX.role >= 0 ? R.mains[TX.role] : -1;
+    document.querySelectorAll("#txBody .sen").forEach(x => x.classList.toggle("mine", Number(x.dataset.spk) === me));
+    if (TP.on && !TP.paused) txPlayAt(TP.i);
+  } else if (a === "bk-tog") {
     const v = el.dataset.v; TX[v] = !TX[v];
     const b = $("#txBody"); if (b) b.classList.toggle(v === "py" ? "nopy" : "novi", !TX[v]);
     el.classList.toggle("on", TX[v]);
@@ -1967,6 +1996,14 @@ document.addEventListener("click", e => {
   }
 });
 
+/* Chạm vào ô thoại của mình để sang câu tiếp (bỏ qua khi đang bôi chọn chữ) */
+document.addEventListener("click", e => {
+  if (!TP.on || TP.paused || !e.target.closest) return;
+  const sen = e.target.closest("#txBody .sen.me.cur"); if (!sen || e.target.closest("button,a")) return;
+  const sl = window.getSelection(); if (sl && !sl.isCollapsed) return;
+  clearTimeout(TP.timer); txPlayAt(TP.i + 1);
+});
+
 /* ---------- Cách tính "Nhớ %" của bài học ----------
    80% khi đã đánh dấu hoàn thành bài và đạt tất cả câu ở "Luyện bài này"
    +10% khi đúng tất cả câu của bài ở thẻ Ôn tập; +10% khi đạt tất cả câu của bài ở Luyện tập theo nhóm
@@ -1982,56 +2019,19 @@ function unitMem(uid, t) {
 }
 
 
-/* ---------- Chọn giọng đọc cho bài khóa (giọng 1, giọng 2, tông giọng 2) ---------- */
-function bkVoiceList() { return TTS.ok ? (speechSynthesis.getVoices() || []).filter(v => /^(zh|cmn)/i.test(v.lang)) : []; }
-function bkFind(id) { return id ? (bkVoiceList().find(v => v.voiceURI === id || v.name === id) || null) : null; }
-const BK_PT = [1, 1.1, 0.9];
-function bkPitch(i) { const n = Number(S.settings["pt" + (i + 1)]); return (S.settings["pt" + (i + 1)] !== "" && S.settings["pt" + (i + 1)] != null && isFinite(n) && n >= 0.5 && n <= 1.5) ? n : BK_PT[i]; }
-function bkVoice(idx) {
-  const i = ((idx % 3) + 3) % 3, pitch = bkPitch(i);
-  if (!TTS.ok) return { v: null, pitch };
-  if (TTS.hasZh === null) TTS.pick();
-  const st = S.settings, v1 = bkFind(st.v1) || TTS.voice;
-  if (i === 0) return { v: v1, pitch };
-  return { v: bkFind(st["v" + (i + 1)]) || v1, pitch };
+/* ---------- Vai trong hội thoại bài khóa ---------- */
+/* Hai nhân vật chính = hai người có nhiều lượt thoại nhất; nhân vật từ thứ ba trở đi là nhân vật nền (giọng tông 0.9) */
+function bkRoles(U) {
+  const cnt = {}, nm = {};
+  U.forEach(u => { cnt[u.spk] = (cnt[u.spk] || 0) + 1; if (u.who && !nm[u.spk]) nm[u.spk] = u.who; });
+  const ids = Object.keys(cnt).map(Number);
+  if (ids.length < 2) return { multi: false, mains: [], nm };
+  const mains = ids.slice().sort((x, y) => cnt[y] - cnt[x] || x - y).slice(0, 2).sort((x, y) => x - y);
+  return { multi: true, mains, nm };
 }
-function bkSample(idx) {
-  if (!TTS.ok) { toast("Trình duyệt này không hỗ trợ phát âm."); return; }
-  const vc = bkVoice(idx);
-  try { speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(["你好，我是小明。", "你好，很高兴认识你。", "大家好，我是小红。"][idx % 3]); u.lang = "zh-CN"; if (vc.v) u.voice = vc.v; u.pitch = vc.pitch; u.rate = S.settings.rate || 1; setTimeout(() => { try { speechSynthesis.speak(u); } catch (e) { } }, 40); } catch (e) { toast("Không phát được âm thanh."); }
-}
-function openVoicePanel() {
-  const vs = bkVoiceList(), st = S.settings;
-  const opt = cur => '<option value="">Tự động</option>' + vs.map(v => `<option value="${esc(v.voiceURI)}" ${cur === v.voiceURI || cur === v.name ? "selected" : ""}>${esc(v.name)} (${esc(v.lang)})</option>`).join("");
-  const fp = n => n.toFixed(2).replace(/0$/, "");
-  const row = (i, lab) => `<div style="margin:12px 0 4px;font-weight:700"><span class="vdot s${i}"></span>${lab}</div>
-    <div class="row"><select id="vp${i + 1}" style="flex:1;min-width:0" aria-label="${lab}">${opt(st["v" + (i + 1)])}</select><button class="btn sm" data-vp="${i}">🔊 Thử</button></div>
-    <div class="pitch"><span class="pl">Tông</span><input type="range" id="pp${i + 1}" min="0.5" max="1.5" step="0.05" value="${bkPitch(i)}" aria-label="Tông giọng ${i + 1}"><span class="pv" id="pv${i + 1}">${fp(bkPitch(i))}</span><button class="btn sm" data-pr="${i}" aria-label="Về mặc định">↺</button></div>`;
-  const bg = document.createElement("div"); bg.className = "modal-bg";
-  bg.innerHTML = `<div class="modal" role="dialog" aria-modal="true"><h3>🎙 Giọng đọc bài khóa</h3>
-    ${vs.length ? "" : '<div class="banner">Thiết bị chưa báo giọng tiếng Trung nào. Hãy cài giọng Trung trong cài đặt hệ thống rồi mở lại bảng này.</div>'}
-    ${row(0, "Giọng 1 (nhân vật đầu / người dẫn)")}${row(1, "Giọng 2 (nhân vật thứ hai)")}${row(2, "Giọng 3 (nhân vật thứ ba)")}
-    <div class="tiny muted" style="margin-top:8px">Mặc định: giọng 1 giữ nguyên (1.0), giọng 2 cao hơn (1.1), giọng 3 trầm hơn (0.9). Kéo thanh trượt để đổi tông. ${vs.length === 1 ? "Máy bạn chỉ có 1 giọng Trung nên các nhân vật được phân biệt bằng tông giọng." : ""}</div>
-    <div class="row" style="justify-content:flex-end;margin-top:14px"><button class="btn primary" data-vp="close">Xong</button></div></div>`;
-  document.body.appendChild(bg);
-  bg.addEventListener("change", e => {
-    const id = e.target.id;
-    if (id === "vp1") S.settings.v1 = e.target.value; else if (id === "vp2") S.settings.v2 = e.target.value; else if (id === "vp3") S.settings.v3 = e.target.value;
-    else if (/^pp[123]$/.test(id)) { S.settings["pt" + id.slice(2)] = Number(e.target.value); } else return;
-    save();
-  });
-  bg.addEventListener("input", e => {
-    const id = e.target.id; if (!/^pp[123]$/.test(id)) return;
-    const n = Number(e.target.value); S.settings["pt" + id.slice(2)] = n; const lb = $("#pv" + id.slice(2)); if (lb) lb.textContent = fp(n);
-  });
-  bg.addEventListener("click", e => {
-    const b = e.target.closest("[data-vp],[data-pr]");
-    if (e.target === bg || (b && b.dataset.vp === "close")) { try { speechSynthesis.cancel(); } catch (x) { } bg.remove(); }
-    else if (b && b.dataset.pr != null) { const i = Number(b.dataset.pr); S.settings["pt" + (i + 1)] = BK_PT[i]; const r = $("#pp" + (i + 1)), lb = $("#pv" + (i + 1)); if (r) r.value = BK_PT[i]; if (lb) lb.textContent = fp(BK_PT[i]); save(); }
-    else if (b && b.dataset.vp != null) bkSample(Number(b.dataset.vp));
-  });
-}
-document.addEventListener("click", e => { const el = e.target.closest && e.target.closest('[data-act="bk-voice"]'); if (el) openVoicePanel(); });
+/* Mở khóa phát âm trên điện thoại ngay trong lúc người học chạm (lượt của bạn im lặng vài giây trước khi app đọc tiếp) */
+function bkUnlock() { try { if (!TTS.ok) return; const u = new SpeechSynthesisUtterance(" "); u.volume = 0; u.lang = "zh-CN"; speechSynthesis.speak(u); } catch (e) { } }
+
 
 /* ============ KHỞI ĐỘNG ============ */
 load(); try { if (!memOnly && !localStorage.getItem(LS_KEY)) save(); } catch (e) { } TTS.init();
