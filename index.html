@@ -1678,6 +1678,7 @@ document.addEventListener("visibilitychange", () => { if (document.hidden) save(
 .tbar.one .btn{min-height:38px;border-radius:12px;padding:0 10px;font-size:16px}
 .tbar.one .btn.primary{flex:1;min-width:48px}
 .tbar.one .btn.rp{flex:none;width:38px;padding:0}
+.tbar.one .btn.rp.on{background:var(--g4);border-color:var(--g4);color:#fff}
 .tbar.one select{flex:none;width:auto;min-height:38px;padding:0 4px;border-radius:12px;font-size:13px}
 .tbar.one .tsep{flex:none;width:1px;height:22px;background:var(--line);margin:0 1px}
 .bkhint{background:var(--g1);color:var(--gd);border-radius:12px;padding:8px 10px;margin:0 0 8px;line-height:1.5}
@@ -1860,7 +1861,7 @@ function pgText(id) {
   setPage(`<div class="bk"><a href="#/texts" class="small">← Bài khóa</a><h2>${esc(t.title)}</h2>
   <div class="tiny muted" style="margin-bottom:6px">Bôi chọn chữ Hán để thêm vào thẻ từ vựng · ▶ cạnh câu để nghe riêng câu đó.</div>
   ${hint}${roleBar}<div class="bkbody nopy novi" id="txBody">${sen}</div>
-  <div class="tbar one"><button class="chip" data-act="bk-tog" data-v="py" aria-label="Hiện/ẩn pinyin">Pinyin</button><button class="chip" data-act="bk-tog" data-v="vi" aria-label="Hiện/ẩn nghĩa">Nghĩa</button><span class="tsep"></span><button class="btn primary" id="tPlay" data-act="bk-play" aria-label="Nghe">▶</button><button class="btn rp" data-act="bk-replay" aria-label="Phát lại từ đầu" title="Lại từ đầu">↺</button><select id="tRate" aria-label="Tốc độ đọc">${[0.6, 0.75, 1, 1.25].map(ro).join("")}</select></div></div>`);
+  <div class="tbar one"><button class="chip" data-act="bk-tog" data-v="py" aria-label="Hiện/ẩn pinyin">Pinyin</button><button class="chip" data-act="bk-tog" data-v="vi" aria-label="Hiện/ẩn nghĩa">Nghĩa</button><span class="tsep"></span><button class="btn primary" id="tPlay" data-act="bk-play" aria-label="Nghe">▶</button><button class="btn rp${TP.loop ? ' on' : ''}" id="tLoop" data-act="bk-loop" aria-pressed="${TP.loop ? 'true' : 'false'}" aria-label="Lặp lại" title="Lặp lại cả bài: hết bài sẽ tự đọc lại từ đầu">🔁</button><select id="tRate" aria-label="Tốc độ đọc">${[0.6, 0.75, 1, 1.25].map(ro).join("")}</select></div></div>`);
 }
 
 /* ---------- Trang sửa ---------- */
@@ -1903,7 +1904,7 @@ function ttsReady(voice, cb) {
 function txPlayAt(i, once) {
   const t = textById(TX.id); if (!t) return;
   const U = bkUnits(t), R = bkRoles(U);
-  if (i >= U.length) { txStop(); TP.i = 0; return; }
+  if (i >= U.length) { if (TP.loop && TP.on && !TP.paused) { const g0 = TP.gen; clearTimeout(TP.timer); TP.timer = setTimeout(() => { if (g0 === TP.gen && TP.on && !TP.paused && TP.loop) txPlayAt(0); }, 900); return; } txStop(); TP.i = 0; return; }
   const g = ++TP.gen; TP.i = i; TP.on = true; TP.paused = false; TP.once = !!once; const sk = TP.skipCancel; TP.skipCancel = false;
   clearTimeout(TP.timer); clearTimeout(TP.wd); clearInterval(TP.tick);
   txUi(); bkClearHl();
@@ -1990,7 +1991,7 @@ document.addEventListener("click", e => {
 document.addEventListener("click", e => {
   const el = e.target.closest && e.target.closest("[data-act^='bk-']"); if (!el) return;
   const a = el.dataset.act;
-  if (TX.role >= 0 && (a === "bk-play" || a === "bk-replay" || a === "bk-from")) bkUnlock();
+  if (TX.role >= 0 && (a === "bk-play" || a === "bk-from")) bkUnlock();
   if (a === "bk-role") {
     TX.role = Number(el.dataset.r);
     document.querySelectorAll("#bkRoles .chip").forEach(b => b.classList.toggle("on", b === el));
@@ -2011,7 +2012,7 @@ document.addEventListener("click", e => {
     if (!TP.on) txPlayAt(TP.i >= n ? 0 : TP.i);
     else if (!TP.paused) { TP.paused = true; TP.gen++; clearTimeout(TP.timer); clearTimeout(TP.wd); clearInterval(TP.tick); try { speechSynthesis.cancel(); } catch (x) { } txUi(); }
     else txPlayAt(TP.i);
-  } else if (a === "bk-replay") txPlayAt(0);
+  } else if (a === "bk-loop") { TP.loop = !TP.loop; el.classList.toggle("on", TP.loop); el.setAttribute("aria-pressed", TP.loop ? "true" : "false"); toast(TP.loop ? "Đã bật lặp lại" : "Đã tắt lặp lại"); }
   else if (a === "bk-from") txPlayAt(Number(el.dataset.i), true);
   else if (a === "bk-cancel") { TE.blocks = []; location.hash = "#/texts"; }
   else if (a === "bk-del") {
