@@ -241,8 +241,16 @@ svg text{font-family:system-ui,sans-serif}
 .fcb .face{padding:16px;border-radius:20px;box-shadow:var(--shadow)}
 .fcspeak{display:flex;gap:8px}
 .fcsp{flex:1;min-height:40px;padding:0 10px;font-size:14px;border-radius:12px;background:var(--g1);color:var(--gdd)}
-.fcact{display:grid;grid-template-columns:48px 1fr 1fr 48px;gap:8px}
-.fcact.v5{grid-template-columns:48px 1fr 44px 1fr 48px}
+.fcact{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.fcact.v5{grid-template-columns:1fr 56px 1fr}
+.fcrow2.pk{grid-template-columns:auto 1fr auto 40px}
+.pklist{max-height:48vh;overflow-y:auto;border:1px solid var(--g2);border-radius:12px;margin-top:8px}
+.pklist label{display:flex;align-items:center;gap:10px;padding:9px 12px;border-bottom:1px solid var(--g2);cursor:pointer}
+.pklist label:last-child{border-bottom:0}
+.pklist input{width:20px;height:20px;flex:none;accent-color:var(--a2)}
+.pklist .zh{font-size:20px;font-weight:700}
+.pklist .pv{min-width:0;font-size:13px;color:var(--gd)}
+.pkbar{display:flex;gap:8px;align-items:center;justify-content:space-between}
 .fcact .btn{min-height:48px;padding:0 4px;border-radius:14px;font-size:15px;font-weight:700;min-width:0;white-space:nowrap}
 .fcact .nav{background:#fff;border:1.5px solid var(--g2);font-size:18px;color:var(--gd)}
 .fcact .nav.del{font-size:16px}
@@ -273,6 +281,10 @@ mark.hl{background:#fff1a8;border-radius:4px;padding:0 2px;color:inherit}
 .fcrow2{display:grid;grid-template-columns:auto 1fr 40px;gap:6px;align-items:center}
 .fcrow2.solo{grid-template-columns:1fr}
 .fcrow2 .btn.k3{margin:0;min-height:38px;padding:0 14px;white-space:nowrap;font-size:14px}
+.fcrow2 .btn.k3.addw{background:#fff;color:var(--gd);border:1.5px solid var(--g2);box-shadow:none;-webkit-backdrop-filter:none;backdrop-filter:none}
+.bulkta{width:100%;min-height:170px;box-sizing:border-box;padding:10px;border-radius:12px;border:1.5px solid var(--g2);font:inherit;font-size:15px;line-height:1.5;resize:vertical;background:#fff}
+.bulkfmt{background:rgba(var(--srgb),.09);border-radius:10px;padding:8px 10px;font-size:13px;line-height:1.5;margin-bottom:8px}
+.bulksum{margin-top:8px;font-size:13px;line-height:1.5}
 .fcrow2 select{min-width:0;min-height:38px;font-size:14px;padding:4px 10px;border-radius:12px}
 .fcrow2 .shuf{width:40px;min-height:38px;padding:0;font-size:16px;border-radius:12px;display:grid;place-items:center}
 .fcp>.fctool select,.fcp>.fctool .shuf{min-height:38px}
@@ -287,8 +299,9 @@ mark.hl{background:#fff1a8;border-radius:4px;padding:0 2px;color:inherit}
 .fcrow2 select,.fcp>.fctool select{min-height:32px;font-size:13px;padding:2px 8px;border-radius:10px}
 .fcrow2 .shuf,.fcp>.fctool .shuf{width:34px;min-height:32px;font-size:14px;border-radius:10px}
 .fcsp{min-height:34px;font-size:13px;border-radius:10px}
-.fcact{grid-template-columns:40px 1fr 1fr 40px;gap:6px}
-.fcact.v5{grid-template-columns:40px 1fr 38px 1fr 40px}
+.fcact{grid-template-columns:1fr 1fr;gap:6px}
+.fcact.v5{grid-template-columns:1fr 48px 1fr}
+.fcrow2.pk{grid-template-columns:auto 1fr auto 34px}
 .fcact .btn{min-height:40px;font-size:14px;border-radius:12px}
 .fcact .nav .ico{width:19px;height:19px}.fcact .nav.del .ico{width:17px;height:17px}
 @keyframes vspw{0%,100%{opacity:.25}50%{opacity:1}}
@@ -1100,7 +1113,7 @@ function renderSummary() {
 
 /* ============ LUYỆN TẬP ============ */
 const PS = { scope: "rv", only: true };
-function pickType(e) { if (e.uid === "bs") return e.canOrder ? "order" : "listen"; return e.canOrder && Math.random() < 0.6 ? "order" : "listen"; }
+function pickType(e) { return e.canOrder && Math.random() < 0.5 ? "order" : "listen"; }
 function buildPracticeKeys(scope, only) {
   const notOk = e => { const r = S.pq[e.id]; return !r || r.s !== "ok"; };
   let list;
@@ -1176,7 +1189,7 @@ function pgPractice() {
 }
 
 /* ============ FLASHCARDS ============ */
-const FC = { cat: "g", scope: "all", kind: "sent", status: "all", shuffle: false, deck: [], i: 0, flip: false, built: false };
+const FC = { cat: "v", scope: "all", kind: "sent", shuffle: false, deck: [], i: 0, flip: false, built: false };
 function cardKeyList() {
   const list = [];
   trackUnits().forEach(u => {
@@ -1184,15 +1197,15 @@ function cardKeyList() {
     if (FC.kind !== "sent" && TRK() !== "a") list.push(keyOf("u", u.id, "card"));
     if (FC.kind !== "struct") u.ex.forEach(e => { if (exInTrack(e)) list.push(keyOf("e", e.id, "card")); });
   });
-  return list.filter(k => { const st = S.cards[k]; return FC.status === "all" || (FC.status === "unmarked" && !st) || (FC.status === "unknown" && st === "unknown") || (FC.status === "known" && st === "known"); });
+  return list;
 }
 function buildDeck() { let d = cardKeyList(); if (FC.shuffle) d = shuffle(d); FC.deck = d; FC.i = 0; FC.flip = false; FC.built = true; }
 
 /* ============ LUYỆN DỊCH ============ */
-const TR = { scope: "all", status: "all", shuffle: false, deck: [], i: 0, flip: false, built: false };
+const TR = { scope: "all", shuffle: false, deck: [], i: 0, flip: false, built: false };
 function trAllKeys() { const l = []; trackUnits().forEach(u => u.ex.forEach(e => { if (exInTrack(e)) l.push(keyOf("e", e.id, "card")); })); return l; }
 function buildTrDeck() {
-  let d = trAllKeys().filter(k => { const u = itemInfo(k); return u && (TR.scope === "all" || u.u.id === TR.scope); }).filter(k => { const st = S.cards[k]; return TR.status === "all" || (TR.status === "unmarked" && !st) || st === TR.status; });
+  let d = trAllKeys().filter(k => { const u = itemInfo(k); return u && (TR.scope === "all" || u.u.id === TR.scope); });
   if (TR.shuffle) d = shuffle(d); TR.deck = d; TR.i = 0; TR.flip = false; TR.built = true;
 }
 function trNorm(x) { return String(x || "").normalize("NFKC").replace(/[\s\u3000，。？！、；：“”‘’"'．,.?!;:…—\-（）()·~～]/g, ""); }
@@ -1217,8 +1230,6 @@ function trCheck() {
   const res = card.querySelector(".trres");
   if (res) res.innerHTML = ico[r] + (typed ? `<div class="zh" style="font-size:18px;margin-top:4px;font-weight:500">Bạn viết: ${esc(typed)}</div>` : "") + (r === "ok" || r === "empty" ? "" : '<div class="tiny muted" style="margin-top:4px;font-weight:400">Một câu có thể dịch nhiều cách đúng, hãy so sánh ý và cấu trúc.</div>');
   TR.flip = true; card.classList.add("flip"); trInert(card);
-  const bar = $("#trBody .fcact");
-  if (bar && r !== "empty") { bar.querySelectorAll(".suggest").forEach(x => x.classList.remove("suggest")); const t = bar.querySelector('[data-v="' + (r === "bad" ? "unknown" : "known") + '"]'); if (t) t.classList.add("suggest"); }
 }
 
 /* ============ LỘ TRÌNH: RESET ============ */
@@ -1256,40 +1267,52 @@ function dictInfo(zh) {
 function hvOf(v) { return v.hv || (dictInfo(v.zh) || {}).hv || ""; }
 function vcNorm(x) { return String(x || "").normalize("NFC").toLowerCase().trim().replace(/\s+/g, " "); }
 function vcFrontSize(zh) { const n = [...zh].length; return n <= 1 ? 96 : n === 2 ? 80 : n === 3 ? 66 : n === 4 ? 54 : 44; }
-const VC = { status: "all", shuffle: false, deck: [], i: 0, flip: false, built: false, chk: false };
+const VC = { mode: "all", pick: [], shuffle: false, deck: [], i: 0, flip: false, built: false, chk: false };
 let VSEL = null, selTimer = 0;
-function fcSel(act, cur, cnt) {
+function vcSel(cur, n) {
   const o = (v, l) => `<option value="${v}" ${cur === v ? "selected" : ""}>${l}</option>`;
-  return `<select data-chg="${act}" data-k="status" aria-label="Lọc theo trạng thái">${o("all", "Tất cả")}${o("unmarked", "Chưa đánh dấu")}${o("unknown", "Chưa nhớ (" + cnt.unknown + ")")}${o("known", "Đã nhớ (" + cnt.known + ")")}</select>`;
+  return `<select data-chg="vset" data-k="mode" aria-label="Chọn từ để học">${o("all", "Tất cả")}${o("pick", "Tùy chọn" + (cur === "pick" ? " (" + n + ")" : ""))}</select>`;
+}
+function openVocabPick() {
+  const sel = new Set(VC.mode === "pick" ? VC.pick : []);
+  const body = `<div class="pkbar"><span class="tiny muted" id="pkCnt"></span><span><button type="button" class="btn sm ghost" data-pk="all">Chọn hết</button> <button type="button" class="btn sm ghost" data-pk="none">Bỏ hết</button></span></div><div class="pklist">${S.vocab.map(v => `<label><input type="checkbox" data-pkid="${esc(v.id)}" ${sel.has(v.id) ? "checked" : ""}><span class="zh">${esc(v.zh)}</span><span class="pv">${esc(v.py || "")}${v.py && v.vi ? " · " : ""}${esc(v.vi || "")}</span></label>`).join("")}</div>`;
+  modal("Chọn từ muốn học", body, "Học các từ đã chọn", "primary", () => {
+    if (!sel.size) { toast("Bạn chưa chọn từ nào."); pgVocab(); return; }
+    VC.mode = "pick"; VC.pick = [...sel]; buildVocabDeck(); pgVocab();
+  });
+  const mbs = document.querySelectorAll(".modal-bg"), bg = mbs[mbs.length - 1]; if (!bg) return;
+  const cnt = () => { const c = bg.querySelector("#pkCnt"); if (c) c.textContent = "Đã chọn " + sel.size + "/" + S.vocab.length + " từ"; };
+  bg.addEventListener("change", e => { const c = e.target.closest("[data-pkid]"); if (!c) return; if (c.checked) sel.add(c.dataset.pkid); else sel.delete(c.dataset.pkid); cnt(); });
+  bg.addEventListener("click", e => { const b = e.target.closest("[data-pk]"); if (!b) return; const on = b.dataset.pk === "all"; bg.querySelectorAll("[data-pkid]").forEach(c => { c.checked = on; if (on) sel.add(c.dataset.pkid); else sel.delete(c.dataset.pkid); }); cnt(); });
+  cnt();
 }
 function fcTool(sel, scope, shufAct, on) { return `<div class="fctool">${sel}${scope || ""}<button class="chip shuf ${on ? "on" : ""}" data-act="${shufAct}" aria-label="Xáo trộn" title="Xáo trộn">${ico("shuf")}</button></div>`; }
 function fcScope(id, cur) { return `<select id="${id}" aria-label="Phạm vi bài"><option value="all">Tất cả các bài</option>${trackUnits().map(u => `<option value="${u.id}" ${cur === u.id ? "selected" : ""}>#${utn(u)} ${esc(u.zh.slice(0, 16))}</option>`).join("")}</select>`; }
-function fcProg(i, n, st) { return `<div class="fcprog"><b>${i + 1}/${n}</b><div class="bar thin"><i style="width:${Math.round((i + 1) / n * 100)}%"></i></div><span>${st === "known" ? "Đã nhớ" : st === "unknown" ? "Chưa nhớ" : ""}</span></div>`; }
+function fcProg(i, n) { return `<div class="fcprog"><b>${i + 1}/${n}</b><div class="bar thin"><i style="width:${Math.round((i + 1) / n * 100)}%"></i></div></div>`; }
 function fcSpk(zh, label) { return `<button type="button" class="btn fcsp k3" data-act="speak" data-zh="${esc(zh)}">${ico("spk")} ${esc(label)}</button>`; }
 function fcActions(p, i, n, del) {
-  return `<div class="fcact ${del ? "v5" : ""}"><button class="btn nav" data-act="${p}-prev" aria-label="Thẻ trước" ${i === 0 ? "disabled" : ""}>${ico("prev")}</button><button class="btn no" data-act="${p}-mark" data-v="unknown">Chưa nhớ</button>${del ? '<button class="btn nav del" data-act="vc-del" aria-label="Xóa thẻ" title="Xóa thẻ">' + ico("trash") + '</button>' : ""}<button class="btn yes" data-act="${p}-mark" data-v="known">Đã nhớ</button><button class="btn nav" data-act="${p}-next" aria-label="Thẻ sau" ${i >= n - 1 ? "disabled" : ""}>${ico("next")}</button></div>`;
+  return `<div class="fcact ${del ? "v5" : ""}"><button class="btn nav" data-act="${p}-prev" aria-label="Thẻ trước" ${i === 0 ? "disabled" : ""}>${ico("prev")}</button>${del ? '<button class="btn nav del" data-act="vc-del" aria-label="Xóa thẻ" title="Xóa thẻ">' + ico("trash") + '</button>' : ""}<button class="btn nav" data-act="${p}-next" aria-label="Thẻ sau" ${i >= n - 1 ? "disabled" : ""}>${ico("next")}</button></div>`;
 }
 function fcEmpty(msg, act, label) { return `<div class="fcempty"><div>${msg}</div><button class="btn sm" data-act="${act}">${label}</button></div>`; }
 function renderFc() {
   const box = $("#fcBody"); if (!box) return;
-  if (!FC.deck.length) { box.innerHTML = fcEmpty("Không có thẻ nào phù hợp bộ lọc.", "freset", "Bỏ bộ lọc"); return; }
+  if (!FC.deck.length) { box.innerHTML = fcEmpty("Bài này chưa có thẻ nào.", "freset", "Xem tất cả các bài"); return; }
   FC.i = clamp(FC.i, 0, FC.deck.length - 1);
-  const key = FC.deck[FC.i], f = cardFaces(key), st = S.cards[key];
-  box.innerHTML = fcProg(FC.i, FC.deck.length, st) + `<div class="scene"><div class="fcard ${FC.flip ? "flip" : ""}" data-act="fc-flip" role="button" tabindex="0" aria-label="Lật thẻ"><div class="face front">${f.front}</div><div class="face back">${f.back}</div></div></div>` + (f.zh ? `<div class="fcspeak">${fcSpk(f.zh, "Nghe câu")}</div>` : "") + fcActions("fc", FC.i, FC.deck.length, false);
+  const key = FC.deck[FC.i], f = cardFaces(key);
+  box.innerHTML = fcProg(FC.i, FC.deck.length) + `<div class="scene"><div class="fcard ${FC.flip ? "flip" : ""}" data-act="fc-flip" role="button" tabindex="0" aria-label="Lật thẻ"><div class="face front">${f.front}</div><div class="face back">${f.back}</div></div></div>` + (f.zh ? `<div class="fcspeak">${fcSpk(f.zh, "Nghe câu")}</div>` : "") + fcActions("fc", FC.i, FC.deck.length, false);
 }
 function pgTrans() {
   if (!TR.built) buildTrDeck();
-  const cnt = { known: 0, unknown: 0 }; trAllKeys().forEach(k => { const st = S.cards[k]; if (st) cnt[st]++; });
-  setPage(`<div class="fcp">${fcCatBar()}${fcTool(fcSel("tset", TR.status, cnt), fcScope("tscope", TR.scope), "tshuffle", TR.shuffle)}<div id="trBody" class="fcb"></div></div>`);
+  setPage(`<div class="fcp">${fcCatBar()}${fcTool("", fcScope("tscope", TR.scope), "tshuffle", TR.shuffle)}<div id="trBody" class="fcb"></div></div>`);
   $("#tscope").addEventListener("change", e => { TR.scope = e.target.value; buildTrDeck(); renderTr(); });
   renderTr();
 }
 function renderTr() {
   const box = $("#trBody"); if (!box) return;
-  if (!TR.deck.length) { box.innerHTML = fcEmpty("Không có câu nào phù hợp bộ lọc.", "treset", "Bỏ bộ lọc"); return; }
+  if (!TR.deck.length) { box.innerHTML = fcEmpty("Bài này chưa có câu để luyện dịch.", "treset", "Xem tất cả các bài"); return; }
   TR.i = clamp(TR.i, 0, TR.deck.length - 1); TR.flip = false;
-  const key = TR.deck[TR.i], info = itemInfo(key), e = info.e, u = info.u, st = S.cards[key];
-  box.innerHTML = fcProg(TR.i, TR.deck.length, st) + `<div class="scene"><div class="fcard" data-act="tr-flip" role="button" tabindex="0" aria-label="Lật thẻ xem đáp án">
+  const key = TR.deck[TR.i], info = itemInfo(key), e = info.e, u = info.u;
+  box.innerHTML = fcProg(TR.i, TR.deck.length) + `<div class="scene"><div class="fcard" data-act="tr-flip" role="button" tabindex="0" aria-label="Lật thẻ xem đáp án">
     <div class="face front"><div class="tiny muted">Dịch sang tiếng Trung</div><div class="trvi">${esc(e.vi)}</div>
       <div class="tform" style="width:100%;margin-top:14px"><input type="text" class="tin" id="trIn" lang="zh-CN" placeholder="Nhập bản dịch…" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"><button type="button" class="btn primary block" style="margin-top:10px" data-act="tr-check">Kiểm tra</button></div></div>
     <div class="face back" inert><div class="trres" style="font-weight:700;margin-bottom:8px"></div><div class="zh mid" style="font-weight:700;line-height:1.5">${esc(e.zh)}</div><div class="py" style="display:block;margin-top:4px">${esc(e.py)}</div><div class="small" style="margin-top:10px"><b>${esc(u.zh)}</b> – ${esc(u.vi)}</div><div class="formula small" style="margin-top:6px">${esc(u.formula)}</div></div>
@@ -1297,21 +1320,21 @@ function renderTr() {
 }
 function pgVocab() {
   if (!VC.built) buildVocabDeck();
-  const cnt = { known: 0, unknown: 0 }; S.vocab.forEach(v => { if (v.k) cnt[v.k]++; });
-  setPage(`<div class="fcp">${fcCatBar()}<div class="fcrow2${S.vocab.length ? "" : " solo"}"><button class="btn sm primary k3" data-act="vc-new">${ico("plus")} Thêm thẻ</button>${S.vocab.length ? fcSel("vset", VC.status, cnt) + `<button class="chip shuf ${VC.shuffle ? "on" : ""}" data-act="vshuffle" aria-label="Xáo trộn" title="Xáo trộn">${ico("shuf")}</button>` : ""}</div><div id="vcBody" class="fcb"></div></div>`);
+  if (VC.mode === "pick") VC.pick = VC.pick.filter(id => S.vocab.some(v => v.id === id));
+  setPage(`<div class="fcp">${fcCatBar()}<div class="fcrow2${S.vocab.length ? (VC.mode === "pick" ? " pk" : "") : " solo"}"><button class="btn sm k3 addw" data-act="vc-new">${ico("plus")} Thêm thẻ</button>${S.vocab.length ? vcSel(VC.mode, VC.pick.length) + (VC.mode === "pick" ? '<button class="btn sm k3" data-act="vpick">Chọn từ</button>' : "") + `<button class="chip shuf ${VC.shuffle ? "on" : ""}" data-act="vshuffle" aria-label="Xáo trộn" title="Xáo trộn">${ico("shuf")}</button>` : ""}</div><div id="vcBody" class="fcb"></div></div>`);
   renderVc();
 }
 function renderVc() {
   const box = $("#vcBody"); if (!box) return;
   if (!VC.deck.length) {
-    box.innerHTML = S.vocab.length ? fcEmpty("Không có từ nào phù hợp bộ lọc.", "vreset", "Bỏ bộ lọc")
-      : '<div class="fcempty">Chưa có từ vựng nào.<br>Bấm <b>Thêm thẻ từ vựng mới</b> ở trên, hoặc vào <a href="#/lessons">Bài học</a>, mở một bài, <b>giữ chọn một từ</b> trong câu ví dụ rồi bấm <b>Thêm vào thẻ từ vựng</b>.</div>';
+    box.innerHTML = S.vocab.length ? fcEmpty("Chưa có từ nào được chọn.", "vreset", "Học tất cả")
+      : '<div class="fcempty">Chưa có từ vựng nào.<br>Bấm <b>Thêm thẻ</b> ở trên để dán danh sách từ, hoặc vào <a href="#/lessons">Bài học</a>, mở một bài, <b>giữ chọn một từ</b> trong câu ví dụ rồi bấm <b>Thêm vào thẻ từ vựng</b>.</div>';
     return;
   }
   VC.i = clamp(VC.i, 0, VC.deck.length - 1);
   const v = S.vocab.find(x => x.id === VC.deck[VC.i]); if (!v) { buildVocabDeck(); return renderVc(); }
   const ex = v.ex ? `<div style="margin-top:12px;border-top:1px dashed var(--g2);padding-top:10px;text-align:left"><div class="tiny muted">Ví dụ</div><div class="zh" style="font-size:19px;margin-top:4px;line-height:1.5">${vocabHL(v.ex.zh, v.zh)}</div><div style="color:var(--gd);font-size:14px;margin-top:2px">${esc(v.ex.py)}</div><div style="margin-top:4px">${esc(v.ex.vi)}</div></div>` : "";
-  box.innerHTML = fcProg(VC.i, VC.deck.length, v.k) + `<div class="scene"><div class="fcard ${VC.flip ? "flip" : ""}" data-act="vc-flip" role="button" tabindex="0" aria-label="Lật thẻ"><div class="face front"><div class="zh vfront-zh" style="font-size:${vcFrontSize(v.zh)}px">${esc(v.zh)}</div><div class="tiny muted" style="margin-top:20px">Chạm để lật thẻ</div></div><div class="face back" ${VC.flip ? "" : "inert"}><div class="vwrap"><div class="vhead"><span class="zh">${esc(v.zh)}</span></div>${v.py ? `<div class="py" style="display:block;text-align:center;font-size:17px">${esc(v.py)}</div>` : ""}<div class="vinfo"><div class="vrow"><span class="vlab">Nghĩa</span><span class="vval">${esc(v.vi || "—")}</span></div><div class="vrow"><span class="vlab">Âm Hán Việt</span><span class="vval">${esc(hvOf(v) || "—")}</span></div></div>${ex}</div></div></div></div><div class="fcspeak">${fcSpk(v.zh, "Nghe từ")}${v.ex ? fcSpk(v.ex.zh, "Nghe câu") : ""}</div>` + fcActions("vc", VC.i, VC.deck.length, true);
+  box.innerHTML = fcProg(VC.i, VC.deck.length) + `<div class="scene"><div class="fcard ${VC.flip ? "flip" : ""}" data-act="vc-flip" role="button" tabindex="0" aria-label="Lật thẻ"><div class="face front"><div class="zh vfront-zh" style="font-size:${vcFrontSize(v.zh)}px">${esc(v.zh)}</div><div class="tiny muted" style="margin-top:20px">Chạm để lật thẻ</div></div><div class="face back" ${VC.flip ? "" : "inert"}><div class="vwrap"><div class="vhead"><span class="zh">${esc(v.zh)}</span></div>${v.py ? `<div class="py" style="display:block;text-align:center;font-size:17px">${esc(v.py)}</div>` : ""}<div class="vinfo"><div class="vrow"><span class="vlab">Nghĩa</span><span class="vval">${esc(v.vi || "—")}</span></div><div class="vrow"><span class="vlab">Âm Hán Việt</span><span class="vval">${esc(hvOf(v) || "—")}</span></div></div>${ex}</div></div></div></div><div class="fcspeak">${fcSpk(v.zh, "Nghe từ")}${v.ex ? fcSpk(v.ex.zh, "Nghe câu") : ""}</div>` + fcActions("vc", VC.i, VC.deck.length, true);
   requestAnimationFrame(fitVcBack);
 }
 function fitVcBack() {
@@ -1323,7 +1346,7 @@ function fitVcBack() {
 window.addEventListener("resize", () => requestAnimationFrame(fitVcBack));
 if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => requestAnimationFrame(fitVcBack));
 function vocabHL(sentence, word) { const a = esc(sentence), w = esc(word); return w ? a.split(w).join(`<mark class="hl">${w}</mark>`) : a; }
-function vocabList() { return S.vocab.filter(v => VC.status === "all" || (VC.status === "unmarked" && !v.k) || v.k === VC.status); }
+function vocabList() { return VC.mode === "pick" ? S.vocab.filter(v => VC.pick.includes(v.id)) : S.vocab.slice(); }
 function buildVocabDeck() { let d = vocabList().map(v => v.id); if (VC.shuffle) d = shuffle(d); VC.deck = d; VC.i = 0; VC.flip = false; VC.built = true; }
 function vocabLookup(zh, e) {
   const d = dictInfo(zh); if (d && (d.py || d.vi)) return d;
@@ -1335,6 +1358,104 @@ function openAddVocab(c) {
   if (S.vocab.some(v => v.zh === c.zh)) { toast("“" + c.zh + "” đã có trong thẻ từ vựng."); return; }
   const look = vocabLookup(c.zh, e);
   openVocabForm({ zh: c.zh, fixed: true, eid: e.id, py: look.py, vi: look.vi, hv: look.hv || "", mode: "lesson", exZh: "", exPy: "", exVi: "" });
+}
+/* Thêm hàng loạt theo danh sách. Mỗi từ là một khối (cách nhau dòng trống):
+   dòng 1: chữ Hán / pinyin / Hán Việt / nghĩa
+   dòng 2-4 (tùy chọn): câu ví dụ · pinyin câu ví dụ · nghĩa câu ví dụ */
+const BULK_PROMPT = [
+"Bạn là giáo viên tiếng Trung cho người Việt. Hãy soạn thẻ từ vựng cho danh sách từ tôi gửi ở cuối tin nhắn này.",
+"",
+"ĐỊNH DẠNG BẮT BUỘC cho mỗi từ (đúng 4 dòng, các từ cách nhau 1 dòng trống):",
+"Dòng 1: chữ Hán / pinyin / Hán Việt / nghĩa tiếng Việt",
+"Dòng 2: một câu ví dụ tiếng Trung có chứa nguyên vẹn từ đó",
+"Dòng 3: pinyin của câu ví dụ",
+"Dòng 4: nghĩa tiếng Việt của câu ví dụ",
+"",
+"MẪU:",
+"你好 / nǐ hǎo / Nhĩ hảo / Xin chào",
+"你好！你叫什么名字？",
+"Nǐ hǎo! Nǐ jiào shénme míngzi?",
+"Xin chào! Bạn tên là gì?",
+"",
+"今天 / jīntiān / Kim thiên / Hôm nay",
+"今天你忙吗？",
+"Jīntiān nǐ máng ma?",
+"Hôm nay bạn có bận không?",
+"",
+"QUY TẮC:",
+"1. Dùng chữ Hán giản thể. Pinyin có dấu thanh, tách âm tiết theo cách viết thông thường (nǐ hǎo, jīntiān).",
+"2. Hán Việt viết thường, chỉ viết hoa chữ cái đầu (Nhĩ hảo). Từ không có âm Hán Việt thì ghi dấu - ở vị trí đó.",
+"3. Nghĩa tiếng Việt ngắn gọn; nếu có nhiều nghĩa thì ngăn bằng dấu phẩy hoặc chấm phẩy. Tuyệt đối KHÔNG dùng dấu / bên trong nội dung, vì / chỉ dùng để ngăn 4 phần ở dòng 1.",
+"4. Câu ví dụ ngắn (5-12 chữ), dễ, đúng trình độ HSK, và chứa đúng từ đang học, không tách rời, không đổi dạng.",
+"5. Không đánh số thứ tự, không gạch đầu dòng, không in đậm, không bảng, không tiêu đề, không giải thích thêm.",
+"6. Đặt TOÀN BỘ kết quả trong MỘT khối code duy nhất để tôi bấm nút sao chép.",
+"",
+"DANH SÁCH TỪ CỦA TÔI (chữ Hán, pinyin hoặc nghĩa tiếng Việt đều được):",
+""
+].join("\n");
+function copyText(t, okMsg) {
+  const fb = () => { const ta = document.createElement("textarea"); ta.value = t; ta.style.cssText = "position:fixed;opacity:0;top:0;left:0"; document.body.appendChild(ta); ta.select(); let ok = false; try { ok = document.execCommand("copy"); } catch (e) { } ta.remove(); toast(ok ? okMsg : "Không sao chép được. Hãy bôi chọn và copy thủ công."); };
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(() => toast(okMsg), fb); else fb();
+}
+function parseVocabBulk(text) {
+  const out = { ok: [], dup: [], bad: [], noex: [] }, seen = new Set(S.vocab.map(v => v.zh));
+  const SEP = /[\/／|\t]/;
+  let cur = null; /* khối đang đọc: { n, w (null nếu bỏ qua), ex: [] } */
+  const flush = () => {
+    if (!cur) return; const c = cur; cur = null; if (!c.w) return;
+    let ex = null;
+    if (c.ex.length) {
+      const z = normZh(c.ex[0]), py = (c.ex[1] || "").trim(), vi = (c.ex[2] || "").trim();
+      if (z && vi && z.includes(c.w.zh)) ex = { id: "", zh: z, py, vi, alts: [] }; else out.noex.push(c.w.zh);
+    }
+    out.ok.push(Object.assign(c.w, { ex }));
+  };
+  String(text || "").split(/\r?\n/).forEach((raw, n) => {
+    const line = raw.replace(/^[\s\-–•·*]*(?:\d{1,3}[.)、]\s*)?/, "").trim();
+    if (!line) { flush(); return; }
+    if (!SEP.test(line)) { /* dòng không có dấu / → thuộc phần ví dụ của khối hiện tại */
+      if (cur && cur.ex.length < 3) cur.ex.push(line); else if (!cur) out.bad.push(n + 1);
+      return;
+    }
+    flush();
+    const parts = line.split(SEP).map(x => x.trim());
+    while (parts.length && !parts[parts.length - 1]) parts.pop();
+    const zh = (parts[0] || "").replace(/\s+/g, "");
+    if (parts.length < 2 || !/[\u4e00-\u9fff]/.test(zh)) { out.bad.push(n + 1); return; }
+    let py, hv, vi;
+    if (parts.length === 2) { const d = dictInfo(zh) || {}; py = d.py || ""; hv = d.hv || ""; vi = parts[1]; }
+    else if (parts.length === 3) { py = parts[1]; hv = ""; vi = parts[2]; }
+    else { py = parts[1]; hv = parts[2]; vi = parts.slice(3).filter(Boolean).join(" / "); }
+    vi = (vi || "").replace(/[.。]+$/, "").trim(); if (/^[-–—]+$/.test(hv)) hv = "";
+    if (!vi) { out.bad.push(n + 1); return; }
+    if (seen.has(zh)) { out.dup.push(zh); cur = { w: null, ex: [] }; return; }
+    seen.add(zh); cur = { w: { zh, py, hv, vi }, ex: [] };
+  });
+  flush();
+  return out;
+}
+function openVocabBulk(text) {
+  const sample = "你好 / nǐ hǎo / Nhĩ hảo / Xin chào\n你好！你叫什么名字？\nNǐ hǎo! Nǐ jiào shénme míngzi?\nXin chào! Bạn tên là gì?\n\n今天 / jīntiān / Kim thiên / Hôm nay\n今天你忙吗？\nJīntiān nǐ máng ma?\nHôm nay bạn có bận không?";
+  const body = `<div class="bulkfmt"><b>Cách 1 · Nhờ ChatGPT soạn:</b> bấm nút bên dưới để sao chép prompt, dán vào ChatGPT, gõ danh sách từ của bạn ở cuối, rồi chép kết quả dán vào ô này.<br><button type="button" class="btn sm primary" id="bulkCopy" style="margin-top:6px">📋 Sao chép prompt cho ChatGPT</button></div><div class="bulkfmt"><b>Cách 2 · Tự gõ:</b> mỗi từ một khối, cách nhau một dòng trống:<br><b>chữ Hán / pinyin / Hán Việt / nghĩa</b><br><span class="muted">(tùy chọn) 3 dòng tiếp theo: câu ví dụ · pinyin · nghĩa. Có ví dụ thì app tự tạo bài tập ở Nhóm 7 · Bổ sung.</span></div><textarea id="bulkTa" class="bulkta" style="min-height:220px" spellcheck="false" autocomplete="off" lang="zh-CN" placeholder="${esc(sample)}">${esc(text)}</textarea><div class="bulksum" id="bulkSum"></div>`;
+  let cur = text || "";
+  modal("Thêm thẻ từ vựng theo danh sách", body, "Thêm vào thẻ", "primary", () => {
+    const r = parseVocabBulk(cur);
+    if (!r.ok.length) { toast("Chưa có dòng hợp lệ để thêm."); openVocabBulk(cur); return; }
+    const t = now(); S.vocab = r.ok.map((w, i) => ({ id: "v" + (t + i).toString(36) + rnd(1e4).toString(36), zh: w.zh, py: w.py, hv: w.hv, vi: w.vi, ex: w.ex || null, t, k: "" })).concat(S.vocab);
+    syncCustom(S.vocab); save(); VC.built = false; VC.mode = "all";
+    const nex = r.ok.filter(w => w.ex).length;
+    toast("Đã thêm " + r.ok.length + " thẻ" + (nex ? " (" + nex + " có ví dụ → Nhóm 7 · Bổ sung)" : "") + (r.dup.length ? " · bỏ qua " + r.dup.length + " từ đã có" : "") + (r.noex.length ? " · " + r.noex.length + " ví dụ không dùng được" : "") + (r.bad.length ? " · " + r.bad.length + " dòng lỗi" : ""));
+    if (/^#\/cards/.test(location.hash) && FC.cat === "v") pgVocab(); hlRefresh();
+  });
+  const mbs = document.querySelectorAll(".modal-bg"), bg = mbs[mbs.length - 1]; if (!bg) return;
+  const ta = bg.querySelector("#bulkTa"), sum = bg.querySelector("#bulkSum");
+  bg.querySelector("#bulkCopy").addEventListener("click", () => copyText(BULK_PROMPT, "Đã sao chép prompt. Hãy dán vào ChatGPT."));
+  const upd = () => {
+    cur = ta.value; if (!cur.trim()) { sum.innerHTML = ""; return; }
+    const r = parseVocabBulk(cur), nex = r.ok.filter(w => w.ex).length;
+    sum.innerHTML = `<b>${r.ok.length}</b> thẻ hợp lệ · ${nex} có ví dụ` + (r.noex.length ? ` · <span style="color:#b84a4a">ví dụ bị bỏ (thiếu nghĩa hoặc không chứa từ): ${r.noex.slice(0, 6).map(esc).join(", ")}${r.noex.length > 6 ? "…" : ""}</span>` : "") + (r.dup.length ? ` · <span class="muted">${r.dup.length} từ đã có (bỏ qua)</span>` : "") + (r.bad.length ? ` · <span style="color:#b84a4a">dòng lỗi: ${r.bad.slice(0, 8).join(", ")}${r.bad.length > 8 ? "…" : ""}</span>` : "");
+  };
+  ta.addEventListener("input", upd); upd();
 }
 function openVocabForm(d) {
   const les = d.les || (d.eid && EB[d.eid] ? EB[d.eid] : null);
@@ -1553,7 +1674,7 @@ function act(a, el) {
     case "track-set": {
       const v = el.dataset.v; if (!TRACKS[v]) break;
       S.nav.track = v; S.nav.last = null; save();
-      LF.q = ""; LF.st = "all"; LF.les = "all"; FC.scope = "all"; FC.kind = "sent"; FC.status = "all"; FC.built = false; PS.scope = "rv";
+      LF.q = ""; LF.st = "all"; LF.les = "all"; FC.scope = "all"; FC.kind = "sent"; FC.built = false; PS.scope = "rv";
       toast("Đã chọn mục " + TRACKS[v].name + " " + TRACKS[v].ic); location.hash = "#/lessons"; break;
     }
     case "tog": { const row = el.closest(".ex"); row.classList.toggle("s-" + el.dataset.k); break; }
@@ -1562,7 +1683,7 @@ function act(a, el) {
     case "ltab": LV.tab = el.dataset.v; pgLesson(LV.uid); break;
     case "done": { const id = el.dataset.uid; if (S.done[id]) delete S.done[id]; else { S.done[id] = now(); toast("Đã hoàn thành bài ✓"); } save(); updateHeader(); pgLesson(id); renderTabs("lesson"); break; }
     case "lesson-practice": { const uid = el.dataset.uid, only = buildLessonKeys(uid, true).length > 0; startLessonPractice(uid, only); break; }
-    case "lesson-cards": FC.scope = el.dataset.uid; FC.kind = "sent"; FC.status = "all"; FC.built = false; break;
+    case "lesson-cards": FC.cat = "g"; FC.scope = el.dataset.uid; FC.kind = "sent"; FC.built = false; break;
     case "lf-st": LF.st = el.dataset.v; document.querySelectorAll("#stChips .chip").forEach(c => c.classList.toggle("on", c.dataset.v === LF.st)); renderLessonList(); break;
     case "review-start": { startSession("review", buildReviewPack(20), { size: 20 }); break; }
     case "pset": { PS.scope = el.dataset.v; pgPractice(); break; }
@@ -1589,54 +1710,37 @@ function act(a, el) {
     }
     case "q-flip": { const q = Q.q; q.flipped = !q.flipped; refreshSession(); break; }
     case "next": { const q = Q.q; if (q && !q.rated) sessRate(autoRating(q)); break; }
-    case "fset": FC[el.dataset.k] = el.dataset.v; buildDeck(); pgCards(); break;
     case "fshuffle": FC.shuffle = !FC.shuffle; buildDeck(); pgCards(); break;
-    case "freset": FC.kind = "sent"; FC.status = "all"; FC.scope = "all"; buildDeck(); pgCards(); break;
+    case "freset": FC.kind = "sent"; FC.scope = "all"; buildDeck(); pgCards(); break;
     case "fc-flip": FC.flip = !FC.flip; { const c = $(".fcard"); if (c) c.classList.toggle("flip", FC.flip); } break;
     case "fc-prev": FC.i--; FC.flip = false; renderFc(); break;
     case "fc-next": FC.i++; FC.flip = false; renderFc(); break;
-    case "fc-mark": {
-      const key = FC.deck[FC.i]; if (!key) break; const v = el.dataset.v; S.cards[key] = v; rateItem(key, v === "known" ? 2 : 0);
-      toast((v === "known" ? "Đã nhớ ✓ – ôn lại sau 3 ngày" : "Chưa nhớ – sẽ ôn lại sau 10 phút") + (FC.i >= FC.deck.length - 1 ? " · Bạn đã đi hết bộ thẻ 🎉" : ""));
-      if (FC.i < FC.deck.length - 1) { FC.i++; FC.flip = false; } renderFc(); renderTabs("cards"); break;
-    }
     case "track-reselect": S.nav.track = null; save(); location.hash = "#/home"; break;
     case "track-reset": {
       const t = TRK(), T = TRACKS[t];
-      modal("Reset lộ trình " + T.name + "?", t === "c" ? "Lộ trình Tổng hợp gồm toàn bộ nội dung nên <b>toàn bộ tiến độ học, lịch ôn, thẻ ngữ pháp đã đánh dấu và lịch sử</b> sẽ bị xóa. Thẻ từ vựng của bạn được giữ nguyên." : "Tiến độ, lịch ôn, thẻ ngữ pháp đã đánh dấu và lịch sử của lộ trình <b>" + esc(T.name) + "</b> sẽ bị xóa. Các lộ trình khác và thẻ từ vựng được giữ nguyên; tiến độ của lộ trình Tổng hợp sẽ chỉ còn phần của lộ trình kia.", "Reset", "bad", () => { resetTrack(t); toast("Đã reset lộ trình " + T.name + "."); location.hash = "#/home"; route(); });
+      modal("Reset lộ trình " + T.name + "?", t === "c" ? "Lộ trình Tổng hợp gồm toàn bộ nội dung nên <b>toàn bộ tiến độ học, lịch ôn,  lịch sử</b> sẽ bị xóa. Thẻ từ vựng của bạn được giữ nguyên." : "Tiến độ, lịch ôn,  lịch sử của lộ trình <b>" + esc(T.name) + "</b> sẽ bị xóa. Các lộ trình khác và thẻ từ vựng được giữ nguyên; tiến độ của lộ trình Tổng hợp sẽ chỉ còn phần của lộ trình kia.", "Reset", "bad", () => { resetTrack(t); toast("Đã reset lộ trình " + T.name + "."); location.hash = "#/home"; route(); });
       break;
     }
     case "fc-cat": FC.cat = ["v", "t", "x"].includes(el.dataset.v) ? el.dataset.v : "g"; if (FC.cat === "v") VC.built = false; if (FC.cat === "t") TR.built = false; pgCards(); break;
-    case "tset": TR.status = el.dataset.v; buildTrDeck(); pgTrans(); break;
     case "tshuffle": TR.shuffle = !TR.shuffle; buildTrDeck(); pgTrans(); break;
-    case "treset": TR.status = "all"; TR.scope = "all"; buildTrDeck(); pgTrans(); break;
+    case "treset": TR.scope = "all"; buildTrDeck(); pgTrans(); break;
     case "tr-check": trCheck(); break;
     case "tr-flip": { const c = $("#trBody .fcard"); if (!c) break; if (!TR.flip) trCheck(); else { TR.flip = false; c.classList.remove("flip"); trInert(c); } break; }
     case "tr-prev": TR.i--; renderTr(); break;
     case "tr-next": TR.i++; renderTr(); break;
-    case "tr-mark": {
-      const key = TR.deck[TR.i]; if (!key) break; const v = el.dataset.v; S.cards[key] = v; rateItem(key, v === "known" ? 2 : 0);
-      toast((v === "known" ? "Đã nhớ ✓ – ôn lại sau 3 ngày" : "Chưa nhớ – sẽ ôn lại sau 10 phút") + (TR.i >= TR.deck.length - 1 ? " · Bạn đã đi hết bộ thẻ 🎉" : ""));
-      if (TR.i < TR.deck.length - 1) TR.i++; renderTr(); renderTabs("cards"); break;
-    }
-    case "vset": VC.status = el.dataset.v; buildVocabDeck(); pgVocab(); break;
+    case "vset": if (el.dataset.v === "pick") { openVocabPick(); pgVocab(); } else { VC.mode = "all"; buildVocabDeck(); pgVocab(); } break;
+    case "vpick": openVocabPick(); break;
     case "vshuffle": VC.shuffle = !VC.shuffle; buildVocabDeck(); pgVocab(); break;
-    case "vreset": VC.status = "all"; buildVocabDeck(); pgVocab(); break;
+    case "vreset": VC.mode = "all"; buildVocabDeck(); pgVocab(); break;
     case "vc-flip": VC.flip = !VC.flip; { const c = $("#vcBody .fcard"); if (c) { c.classList.toggle("flip", VC.flip); const b = c.querySelector(".face.back"); if (b) { if (VC.flip) b.removeAttribute("inert"); else b.setAttribute("inert", ""); } if (VC.flip && !VC.chk) setTimeout(() => { const i = c.querySelector(".vin"); if (i && VC.flip) i.focus({ preventScroll: true }); }, 450); } } break;
     case "vc-prev": VC.i--; VC.flip = false; renderVc(); break;
     case "vc-next": VC.i++; VC.flip = false; renderVc(); break;
-    case "vc-mark": {
-      const v = S.vocab.find(x => x.id === VC.deck[VC.i]); if (!v) break;
-      v.k = el.dataset.v === "known" ? "known" : "unknown"; save();
-      toast((v.k === "known" ? "Đã nhớ ✓" : "Chưa nhớ – hãy ôn lại sau nhé") + (VC.i >= VC.deck.length - 1 ? " · Bạn đã đi hết bộ thẻ 🎉" : ""));
-      if (VC.i < VC.deck.length - 1) { VC.i++; VC.flip = false; } renderVc(); break;
-    }
     case "vc-del": {
       const v = S.vocab.find(x => x.id === VC.deck[VC.i]); if (!v) break;
       modal("Xóa thẻ từ vựng?", "Thẻ “<b>" + esc(v.zh) + "</b>” sẽ bị xóa.", "Xóa", "bad", () => { S.vocab = S.vocab.filter(x => x.id !== v.id); const xid = "vx-" + v.id; delete S.pq[xid]; delete S.lp[xid]; delete S.items[keyOf("e", xid, "order")]; delete S.items[keyOf("e", xid, "listen")]; if (S.pr) { S.pr.keys = S.pr.keys.filter(k => k.split(":")[1] !== xid); if (!S.pr.keys.length || S.pr.i >= S.pr.keys.length) S.pr = null; } syncCustom(S.vocab); save(); buildVocabDeck(); pgVocab(); });
       break;
     }
-    case "vc-new": openVocabForm({ zh: "", fixed: false, eid: "", py: "", hv: "", vi: "", mode: "own", exZh: "", exPy: "", exVi: "" }); break;
+    case "vc-new": openVocabBulk(""); break;
     case "tx-new": txOpenEdit(null); break;
     case "tx-edit": txOpenEdit(textById(el.dataset.id)); break;
     case "tx-cancel": TE.blocks = []; location.hash = "#/cards"; break;
@@ -1807,15 +1911,14 @@ function route() {
 /* Thẻ (flashcard) không còn tab "Bài khóa" */
 function fcCatBar() {
   const b = (v, l) => `<button data-act="fc-cat" data-v="${v}" class="${FC.cat === v ? "on" : ""}" aria-pressed="${FC.cat === v}">${l}</button>`;
-  return `<div class="seg full catseg" role="group" aria-label="Loại thẻ">${b("g", "Ngữ pháp")}${b("v", "Từ vựng (" + S.vocab.length + ")")}${b("t", "Luyện dịch")}</div>`;
+  return `<div class="seg full catseg" role="group" aria-label="Loại thẻ">${b("v", "Từ vựng (" + S.vocab.length + ")")}${b("t", "Luyện dịch")}${b("g", "Ngữ pháp")}</div>`;
 }
 function pgCards() {
   if (FC.cat === "x") FC.cat = "g";
   if (FC.cat === "v") return pgVocab();
   if (FC.cat === "t") return pgTrans();
   if (!FC.built) buildDeck();
-  const cnt = { known: 0, unknown: 0 }; for (const k in S.cards) { const it = itemInfo(k); if (it && it.kind === "e" && itemInTrack(k)) cnt[S.cards[k]]++; }
-  setPage(`<div class="fcp">${fcCatBar()}${fcTool(fcSel("fset", FC.status, cnt), fcScope("fscope", FC.scope), "fshuffle", FC.shuffle)}<div id="fcBody" class="fcb"></div></div>`);
+  setPage(`<div class="fcp">${fcCatBar()}${fcTool("", fcScope("fscope", FC.scope), "fshuffle", FC.shuffle)}<div id="fcBody" class="fcb"></div></div>`);
   $("#fscope").addEventListener("change", e => { FC.scope = e.target.value; buildDeck(); renderFc(); });
   renderFc();
 }
