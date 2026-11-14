@@ -5,7 +5,7 @@
   --bg:#f2faf2; --bg2:#e6f6e8; --card:#ffffff; --cream:#fffdf6;
   --g1:#e3f5e5; --g2:#c8ebcf; --g3:#9ad8ac; --g4:#5fbf84; --gd:#2f7d4f; --gdd:#1f5a38;
   --ink:#22382a; --muted:#6a8173; --line:#dcebdd;
-  --warn:#f2b56b; --warnbg:#fff1dc; --bad:#d96b6b; --badbg:#fde8e8; --ok:#3aa564; --okbg:#e2f6e8; --blue:#6aa7d9; --bluebg:#e6f1fb;
+  --warn:#9fd94f; --warnbg:#fff1dc; --bad:#d96b6b; --badbg:#fde8e8; --ok:#3aa564; --okbg:#e2f6e8; --blue:#6aa7d9; --bluebg:#e6f1fb;
   --shadow:0 2px 10px rgba(var(--srgb),.10); --shadow2:0 6px 22px rgba(47,125,79,.16);
   --r:18px;
   --a1:#6fcb8f; --a2:#4db37a; --argb:77,179,122; --srgb:47,125,79;
@@ -1343,7 +1343,8 @@ function openVocabForm(d) {
     S.vocab.unshift({ id: "v" + now().toString(36) + rnd(1e4).toString(36), zh, py: d.py, hv: d.hv, vi: d.vi, ex, t: now(), k: "" });
     syncCustom(S.vocab); save(); VC.built = false;
     toast(ex && !ex.id ? "Đã thêm “" + zh + "” và tạo bài tập ở Nhóm 7 · Bổ sung 📝" : "Đã thêm “" + zh + "” vào thẻ từ vựng 📝");
-    if (/^#\/cards/.test(location.hash) && FC.cat === "v") pgVocab();
+    if (/^#\/cards/.test(location.hash) && FC.cat === "v") pgVocab(); else if (/^#\/text\//.test(location.hash)) bkRefreshVocab();
+    hlRefresh();
   });
   [["vZh", "zh"], ["vPy", "py"], ["vHv", "hv"], ["vVi", "vi"], ["vExZh", "exZh"], ["vExPy", "exPy"], ["vExVi", "exVi"]].forEach(([id, k]) => { const el = $("#" + id); if (el) el.addEventListener("input", () => { d[k] = el.value.trim(); }); });
   const sm = $("#vMode");
@@ -1454,7 +1455,7 @@ function pgStats() {
   const tm = { order: "Sắp xếp", listen: "Nghe chọn", formula: "Công thức", card: "Thẻ" };
   setPage(`<div class="row sp" style="margin-top:6px"><h2 class="sec" style="margin:6px 2px">Thống kê ghi nhớ</h2><button class="btn icon sm" data-act="goto-settings" aria-label="Cài đặt và dữ liệu" title="Cài đặt">${ico("set")}</button></div>
   <div class="grid2"><div class="stat"><div class="ic">📘</div><div><b>${learned}/${TU.length}</b><span>Cấu trúc đã học (đã luyện)</span></div></div><div class="stat"><div class="ic">🏆</div><div><b>${cnt.mastered}</b><span>Đã thuộc</span></div></div><div class="stat"><div class="ic">⏰</div><div><b>${cnt.review}</b><span>Cần ôn</span></div></div><div class="stat"><div class="ic">🧠</div><div><b>${memAvg}%</b><span>Tỷ lệ ghi nhớ trung bình</span></div></div></div>
-  <div class="card"><b>Phân bố trạng thái</b><div class="bar" style="display:flex;margin:8px 0;height:14px">${seg("mastered", "#4db37a")}${seg("learning", "#8ec5ea")}${seg("review", "#f2b56b")}${seg("new", "#d9e2db")}</div>
+  <div class="card"><b>Phân bố trạng thái</b><div class="bar" style="display:flex;margin:8px 0;height:14px">${seg("mastered", "#4db37a")}${seg("learning", "#8ec5ea")}${seg("review", "#9fd94f")}${seg("new", "#d9e2db")}</div>
     <div class="row wrap2 tiny">${["mastered", "learning", "review", "new"].map(k => `<span class="pill ${k}">${ST_LABEL[k]} ${cnt[k]}</span>`).join("")}</div></div>
   <div class="card"><b>Biểu đồ 14 ngày gần nhất</b><div class="tiny muted">Số lượt ôn/luyện mỗi ngày · Chuỗi hiện tại: ${streakDays()} ngày</div>${barChart()}</div>
   <div class="card"><b>Kết quả theo dạng bài</b>${["order", "listen", "formula", "card"].map(k => `<div class="kv"><span>${TYPE_META[k][0]} ${tm[k]}</span><span>${T(k).n} lượt${k !== "card" && T(k).n ? " · " + pct(T(k).c / T(k).n) + " đúng" : k === "card" ? " · tự đánh giá" : ""}</span></div>`).join("")}
@@ -1740,6 +1741,14 @@ document.addEventListener("visibilitychange", () => { if (document.hidden) save(
 .tdock .tbar.one #tPlay .ico{width:24px;height:24px}
 .tdock .tbar.one select{-webkit-appearance:none;appearance:none;background:transparent;border:0;box-shadow:none;color:var(--gd);font-weight:700;font-size:14px;width:44px;min-height:36px;padding:0;text-align:center;text-align-last:center;border-radius:18px}
 .sen.pk{background:#eef0ee}
+.vw{background:#d2ff94;border-radius:4px;box-shadow:0 1px 0 #9fd94f;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.vw.act{background:#b8f06a}
+#vpop{position:fixed;z-index:860;display:none;max-width:min(220px,calc(100vw - 16px));background:#fff;border:1px solid #9fd94f;border-radius:9px;padding:4px 9px;box-shadow:0 6px 18px rgba(0,0,0,.2);pointer-events:none;text-align:center;line-height:1.3}
+#vpop .p{font-weight:700;color:var(--py);font-size:13px}
+#vpop .hv{font-size:12px;color:var(--muted)}
+#vpop .m{font-size:12.5px;color:var(--ink)}
+#vpop::after{content:"";position:absolute;left:var(--ax,50%);bottom:-5px;width:8px;height:8px;background:#fff;border-right:1px solid #9fd94f;border-bottom:1px solid #9fd94f;transform:translateX(-50%) rotate(45deg)}
+#vpop.dn::after{bottom:auto;top:-5px;transform:translateX(-50%) rotate(225deg)}
 `;
   document.head.appendChild(s);
 })();
@@ -1840,14 +1849,106 @@ function bkUnitsRaw(t) {
 }
 let BK_LEX = null, BK_LEXN = -1;
 function bkLex() {
-  const n = S.vocab.length; if (BK_LEX && BK_LEXN === n) return BK_LEX;
+  const n = S.vocab.map(v => v.zh).join("|"); if (BK_LEX && BK_LEXN === n) return BK_LEX;
   const l = new Set(Object.keys(VOCAB_DICT)); Object.keys(DICT).forEach(w => l.add(w)); Object.keys(HV_DICT).forEach(w => l.add(w)); S.vocab.forEach(v => l.add(v.zh));
   ALLEX.forEach(e => { if (e.uid !== "bs") e.ch.forEach(t => { const w = t.replace(/[^\u4e00-\u9fff]/g, ""); if (w.length >= 2 && w.length <= 4 && !/[了呢吗吧的]$/.test(w) && !/^[一二两三四五六七八九十]/.test(w)) l.add(w); }); });
   BK_LEX = l; BK_LEXN = n; return l;
 }
+function bkHH(h) {
+  const vm = new Map(); S.vocab.forEach(v => { if (v.zh && !vm.has(v.zh)) vm.set(v.zh, v); });
+  const lex = bkLex(); let k = 0, wi = 0, maxL = 0; vm.forEach((v, z) => { if (z.length > maxL) maxL = z.length; });
+  const emit = (tk, v) => {
+    if (!/^[\u4e00-\u9fff]+$/.test(tk)) return esc(tk);
+    const w = wi++, inner = [...tk].map(c => `<span class="c" data-k="${k++}" data-w="${w}">${esc(c)}</span>`).join("");
+    return v ? `<span class="vw" data-vid="${esc(v.id)}">${inner}</span>` : inner;
+  };
+  const gap = s => s ? segment(s, "", lex).map(tk => emit(tk, tk.length === 1 ? vm.get(tk) : null)).join("") : "";
+  let out = "", i = 0, g0 = 0;
+  while (i < h.length) {
+    let hit = 0;
+    for (let n = Math.min(maxL, h.length - i); n >= 2; n--) { if (vm.has(h.substr(i, n))) { hit = n; break; } }
+    if (hit) { out += gap(h.slice(g0, i)) + emit(h.substr(i, hit), vm.get(h.substr(i, hit))); i += hit; g0 = i; } else i++;
+  }
+  return out + gap(h.slice(g0));
+}
+function bkRefreshVocab() {
+  const t = textById(TX.id); if (!t) return; const U = bkUnits(t);
+  document.querySelectorAll("#txBody .sen").forEach(el => { const u = U[Number(el.dataset.i)], sh = el.querySelector(".sh"); if (u && sh) sh.innerHTML = bkHH(u.h); });
+}
+let VPOP = null;
+function bkSilent() {
+  if (!TP.on || TP.paused) return true;
+  const c = document.querySelector("#txBody .sen.cur"); return !!(c && c.classList.contains("me"));
+}
+function bkVpHide() { const p = document.getElementById("vpop"); if (p) p.style.display = "none"; if (VPOP) VPOP.classList.remove("act"); VPOP = null; }
+document.addEventListener("click", ev => {
+  const w = ev.target.closest && ev.target.closest(".vw");
+  if (!w) { bkVpHide(); return; }
+  const sl = window.getSelection(); if (sl && !sl.isCollapsed) return;
+  if (w.closest("#txBody")) { if (!bkSilent()) { bkVpHide(); return; } }
+  else if (w.closest("button,a,label,[data-act],input,select,textarea")) { bkVpHide(); return; }
+  if (VPOP === w) { bkVpHide(); return; }
+  const v = S.vocab.find(x => x.id === w.dataset.vid); if (!v) return;
+  bkVpHide(); VPOP = w; w.classList.add("act");
+  let p = document.getElementById("vpop"); if (!p) { p = document.createElement("div"); p.id = "vpop"; p.setAttribute("role", "tooltip"); document.body.appendChild(p); }
+  p.innerHTML = (v.py ? `<div class="p">${esc(v.py)}</div>` : "") + `<div class="m">${v.vi ? esc(v.vi) : '<i class="muted">chưa có nghĩa</i>'}</div>`;
+  p.classList.remove("dn"); p.style.visibility = "hidden"; p.style.display = "block";
+  const r = w.getBoundingClientRect(), pw = p.offsetWidth, ph = p.offsetHeight, hd = document.querySelector("header.top"), hb = hd ? hd.getBoundingClientRect().bottom : 0;
+  const cx = r.left + r.width / 2, left = clamp(cx - pw / 2, 8, Math.max(8, innerWidth - pw - 8));
+  let top = r.top - ph - 7; if (top < hb + 4) { top = r.bottom + 7; p.classList.add("dn"); }
+  p.style.left = left + "px"; p.style.top = top + "px"; p.style.setProperty("--ax", clamp(cx - left, 14, pw - 14) + "px"); p.style.visibility = "visible";
+});
+window.addEventListener("scroll", bkVpHide, { passive: true });
+window.addEventListener("hashchange", bkVpHide);
+/* ===== Tô từ vựng đã thêm ở mọi nội dung học (trừ thẻ từ vựng); tự cập nhật khi thêm/xóa từ ===== */
+const HL_SKIP = 'script,style,textarea,input,select,rt,rp,.vw,#selbar,#vpop,.modal-bg,#wsheet,#vcBody,[contenteditable="true"],#txBody .sh';
+let HL_OBS = null, HL_T = 0;
+function hlSplit(h, vm, lex, maxL) {
+  const out = []; let any = false;
+  const gap = s => { if (!s) return; segment(s, "", lex).forEach(tk => { const v = tk.length === 1 ? (vm.get(tk) || null) : null; if (v) any = true; out.push([tk, v]); }); };
+  let i = 0, g0 = 0;
+  while (i < h.length) {
+    let hit = 0;
+    for (let n = Math.min(maxL, h.length - i); n >= 2; n--) { if (vm.has(h.substr(i, n))) { hit = n; break; } }
+    if (hit) { gap(h.slice(g0, i)); out.push([h.substr(i, hit), vm.get(h.substr(i, hit))]); any = true; i += hit; g0 = i; } else i++;
+  }
+  gap(h.slice(g0));
+  if (!any || out.map(x => x[0]).join("") !== h) return null;
+  const m = []; out.forEach(([t, v]) => { const l = m[m.length - 1]; if (!v && l && !l[1]) l[0] += t; else m.push([t, v]); });
+  return m;
+}
+function hlPass() {
+  const vm = new Map(); S.vocab.forEach(v => { if (v.zh && !vm.has(v.zh)) vm.set(v.zh, v); });
+  /* gỡ những chỗ đã tô mà từ không còn trong thẻ */
+  app.querySelectorAll(".vw").forEach(el => {
+    if (el.closest("#txBody .sh")) return;
+    const v = vm.get(el.textContent);
+    if (v && v.id === el.dataset.vid && !el.closest("#vcBody")) return;
+    const par = el.parentNode; if (!par) return; par.replaceChild(document.createTextNode(el.textContent), el); par.normalize();
+  });
+  if (!vm.size) return;
+  const lex = bkLex(); let maxL = 0; vm.forEach((v, z) => { if (z.length > maxL) maxL = z.length; });
+  const w = document.createTreeWalker(app, NodeFilter.SHOW_TEXT, { acceptNode: n => { if (!/[一-鿿]/.test(n.nodeValue)) return NodeFilter.FILTER_REJECT; const p = n.parentElement; return p && !p.closest(HL_SKIP) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT; } });
+  const list = []; while (w.nextNode()) list.push(w.currentNode);
+  list.forEach(n => {
+    const parts = hlSplit(n.nodeValue, vm, lex, maxL); if (!parts || !n.parentNode) return;
+    const f = document.createDocumentFragment();
+    parts.forEach(([t, v]) => { if (v) { const s = document.createElement("span"); s.className = "vw"; s.dataset.vid = v.id; s.textContent = t; f.appendChild(s); } else f.appendChild(document.createTextNode(t)); });
+    n.parentNode.replaceChild(f, n);
+  });
+}
+function hlRun() {
+  if (HL_OBS) HL_OBS.disconnect();
+  try { hlPass(); } catch (e) { }
+  if (HL_OBS) HL_OBS.observe(app, { childList: true, subtree: true, characterData: true });
+}
+function hlRefresh() { clearTimeout(HL_T); hlRun(); }
+function hlInit() {
+  HL_OBS = new MutationObserver(() => { clearTimeout(HL_T); HL_T = setTimeout(hlRun, 40); });
+  hlRun();
+}
 function bkSenHTML(u, i) {
-  let k = 0, wi = 0;
-  const hh = segment(u.h, "", bkLex()).map(tk => { if (!/^[\u4e00-\u9fff]+$/.test(tk)) return esc(tk); const w = wi++; return [...tk].map(c => `<span class="c" data-k="${k++}" data-w="${w}">${esc(c)}</span>`).join(""); }).join("");
+  const hh = bkHH(u.h);
   const toks = u.p ? u.p.split(/\s+/).filter(Boolean) : [];
   const pp = toks.map((x, j) => `<span class="pt" data-k="${j}">${esc(x)}</span>`).join(" ");
   const who = u.who ? `<div class="wh"><span class="who s${u.spk % 3}">${esc(u.who)}</span></div>` : "";
@@ -1896,7 +1997,7 @@ function pgText(id) {
   const roleBar = R.multi ? `<div class="bkbar" id="bkRoles"><span class="small muted" style="align-self:center">Vai của bạn:</span><button class="chip on" data-act="bk-role" data-r="-1">🎧 Chỉ nghe</button>${R.mains.map((sp, k) => `<button class="chip" data-act="bk-role" data-r="${k}">🎤 ${esc(R.nm[sp] || ("Vai " + (k + 1)))}</button>`).join("")}</div>` : "";
   const ro = r => `<option value="${r}" ${TP.rate === r ? "selected" : ""}>${r}×</option>`;
   setPage(`<div class="bk"><a href="#/texts" class="small">← Bài khóa</a><h2>${esc(t.title)}</h2>
-  <div class="tiny muted" style="margin-bottom:6px">Bôi chọn chữ Hán để thêm vào thẻ từ vựng · ▶ cạnh câu để nghe riêng câu đó.</div>
+  <div class="tiny muted" style="margin-bottom:6px">Bôi chọn chữ Hán để thêm vào thẻ từ vựng · từ được tô nổi bật là từ bạn đã thêm, chạm để xem pinyin và nghĩa · ▶ cạnh câu để nghe riêng câu đó.</div>
   ${hint}${roleBar}<div class="bkbody nopy novi" id="txBody">${sen}</div>
   <div class="tdock"><div class="tbar one"><button class="chip" data-act="bk-tog" data-v="py" aria-label="Hiện/ẩn pinyin">Pinyin</button><button class="chip" data-act="bk-tog" data-v="vi" aria-label="Hiện/ẩn nghĩa">Nghĩa</button><button class="btn rp" data-act="bk-replay" aria-label="Phát lại từ đầu" title="Lại từ đầu">${ico("undo")}</button><button class="btn primary" id="tPlay" data-act="bk-play" aria-label="Nghe">${ico("play")}</button><button class="chip ic" id="tLoop" data-act="bk-loop" aria-label="Lặp: tắt" title="Lặp: tắt">${ico("loop")}</button><select id="tRate" aria-label="Tốc độ đọc">${[0.6, 0.75, 1, 1.25].map(ro).join("")}</select></div></div></div>`);
   bkLoopUi();
@@ -1972,7 +2073,7 @@ function txPlayAt(i, once) {
   if (i >= U.length) { if (TP.loop === 1 && U.length && !once) { TP.skipCancel = true; txPlayAt(0); return; } txStop(); TP.i = 0; bkProg(0); return; }
   const g = ++TP.gen; TP.i = i; TP.on = true; TP.paused = false; TP.once = !!once; const sk = TP.skipCancel; TP.skipCancel = false;
   clearTimeout(TP.timer); clearTimeout(TP.wd); clearInterval(TP.tick);
-  txUi(); bkClearHl(); bkProg(0);
+  txUi(); bkClearHl(); bkProg(0); bkVpHide();
   const u = U[i], n = Math.max(1, u.cj.length), rate = TP.rate || 1, text = u.h.replace(/\s+/g, " ").trim();
   /* Mốc thời gian theo trọng số: mỗi chữ Hán = 1, dấu câu thêm thời gian nghỉ; tự hiệu chỉnh theo tốc độ đọc thực của các câu trước */
   const wts = []; for (const ch of u.h) { if (/[\u4e00-\u9fff]/.test(ch)) wts.push(1); else if (wts.length) wts[wts.length - 1] += /[。！？!?]/.test(ch) ? 1.2 : /[，、,；;：:]/.test(ch) ? 0.6 : 0; }
@@ -2019,6 +2120,7 @@ function checkSelection() {
   const sel = window.getSelection(); if (!sel || sel.isCollapsed || !sel.rangeCount) return hideSelBar();
   const txt = sel.toString().replace(/[\s，。？！、；：“”‘’（）…—,.?!;:'"()]+/g, "");
   if (!txt || txt.length > 12 || !/^[\u4e00-\u9fff]+$/.test(txt)) return hideSelBar();
+  if (S.vocab.some(v => v.zh === txt)) return hideSelBar(); /* đã có trong thẻ từ vựng: không mời thêm nữa */
   const range = sel.getRangeAt(0), a = range.commonAncestorContainer, node = a.nodeType === 1 ? a : a.parentElement;
   if (!node || node.closest('input,textarea,select,.modal-bg,#wsheet,#selbar,[contenteditable="true"]')) return hideSelBar();
   const th = inTx ? node.closest("#txBody .sh") : null, lex = node.closest(".ex"), lexOk = !inTx && lex && EB[lex.dataset.id] && node.closest(".ex .zh");
@@ -2090,7 +2192,7 @@ document.addEventListener("click", e => {
 /* Chạm vào ô thoại của mình để sang câu tiếp (bỏ qua khi đang bôi chọn chữ) */
 document.addEventListener("click", e => {
   if (!TP.on || TP.paused || TP.once || !e.target.closest) return;
-  const sen = e.target.closest("#txBody .sen.me.cur"); if (!sen || e.target.closest("button,a")) return;
+  const sen = e.target.closest("#txBody .sen.me.cur"); if (!sen || e.target.closest("button,a,.vw")) return;
   const sl = window.getSelection(); if (sl && !sl.isCollapsed) return;
   clearTimeout(TP.timer); txPlayAt(TP.i + 1);
 });
@@ -2126,6 +2228,7 @@ function bkUnlock() { try { if (!TTS.ok) return; const u = new SpeechSynthesisUt
 load(); try { if (!memOnly && !localStorage.getItem(LS_KEY)) save(); } catch (e) { } TTS.init();
 if (window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches) document.body.classList.add("noanim");
 window.__HSK = { TRK, TRACKS, itemInTrack, exInTrack, trackUnits, trackEx, trackSummary, startPractice, buildPracticeKeys, startLessonPractice, buildLessonKeys, lessonPracStats, pracAnswer, curStage, EGRP, GSIZE, TOTAL_Q, startSession, get S() { return S; }, set S(v) { S = v; }, UNITS, ALLEX, UB, EB, applyRating, statusOf, memPct, rateItem, buildReview, buildPractice, reviewPlan, makeQuestion, itemInfo, keyOf, newRec, get Q() { return Q; }, dayKey, streakDays, unitStats, blank, migrate, save, load: () => load(), TTS };
+hlInit();
 route();
 /* ============ SPLASH ============ */
 (function () {
