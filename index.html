@@ -374,11 +374,32 @@ UNITS.forEach(u => {
   UB[u.id] = u;
   u.ex.forEach(e => { e.uid = u.id; e.canOrder = !!e.ord && e.ch.length >= 3; e.okSet = new Set([e.zh].concat(e.alt || [])); EB[e.id] = e; ALLEX.push(e); });
 });
-const GROUPS = [["Nhóm 1", "Bài 16–18"], ["Nhóm 2", "Bài 19–21"], ["Nhóm 3", "Bài 22–24"], ["Nhóm 4", "Bài 25–27"], ["Nhóm 5", "Bài 28–30"], ["Nhóm 6", "Phần phân biệt"], ["Nhóm 7", "Bổ sung"]];
-const EGRP = {}; ALLEX.forEach(e => { const u = UB[e.uid]; EGRP[e.id] = u.lesson === "C" ? 5 : Math.max(0, Math.min(4, Math.floor((Number(u.lesson) - 16) / 3))); });
-const GSIZE = GROUPS.map((_, g) => ALLEX.filter(e => EGRP[e.id] === g).length);
+/* Chia nhóm Luyện tập: mỗi nhóm GROUP_SIZE câu, chia theo thứ tự bài trong lộ trình đang chọn (Cơ bản / Nâng cao / Tổng hợp).
+   Nhóm cuối cùng luôn là "Bổ sung" (câu ví dụ do người học tự thêm). GROUPS / EGRP / GSIZE được tính lại khi đổi lộ trình. */
+const GROUP_SIZE = 60;
+const GROUPS = [], EGRP = {}, GSIZE = [];
+let GTRK = null;
+function groupRange(list) {
+  const ls = []; list.forEach(e => { const u = UB[e.uid]; if (u && ls.indexOf(u.lesson) < 0) ls.push(u.lesson); });
+  const nums = ls.filter(x => x !== "C").map(Number), hasC = ls.indexOf("C") >= 0;
+  let t = nums.length ? (Math.min.apply(null, nums) === Math.max.apply(null, nums) ? "Bài " + nums[0] : "Bài " + Math.min.apply(null, nums) + "–" + Math.max.apply(null, nums)) : "";
+  if (hasC) t = t ? t + " + phân biệt" : "Phần phân biệt";
+  return t;
+}
+function regroup(t) {
+  GTRK = t; GROUPS.length = 0; GSIZE.length = 0; Object.keys(EGRP).forEach(k => delete EGRP[k]);
+  const main = ALLEX.filter(e => e.uid !== "bs" && exInTrack(e, t));
+  for (let k = 0; k * GROUP_SIZE < main.length; k++) {
+    const chunk = main.slice(k * GROUP_SIZE, (k + 1) * GROUP_SIZE);
+    GROUPS.push(["Nhóm " + (k + 1), groupRange(chunk)]); GSIZE.push(chunk.length);
+    chunk.forEach(e => { EGRP[e.id] = k; });
+  }
+  const bsG = GROUPS.length; GROUPS.push(["Nhóm " + (bsG + 1), "Bổ sung"]);
+  GSIZE.push(0); ALLEX.forEach(e => { if (e.uid === "bs") { EGRP[e.id] = bsG; GSIZE[bsG]++; } });
+}
+regroup("b");
 const TOTAL_Q = ALLEX.length;
-/* ===== Bài tập "Bổ sung" (Nhóm 7): tự sinh từ ví dụ của thẻ từ vựng ===== */
+/* ===== Bài tập "Bổ sung" (nhóm Bổ sung): tự sinh từ ví dụ của thẻ từ vựng ===== */
 UB.bs = { id: "bs", n: 0, lesson: "S", zh: "Bổ sung", vi: "Từ vựng do bạn tự thêm", use: "", formula: "Câu ví dụ trong thẻ từ vựng của bạn.", ex: [], hidden: true };
 let LEXB = null;
 function lexicon() { if (!LEXB) { LEXB = new Set(Object.keys(VOCAB_DICT)); Object.keys(DICT).forEach(w => LEXB.add(w)); ALLEX.forEach(e => { if (e.uid !== "bs") e.ch.forEach(t => LEXB.add(t)); }); } return LEXB; }
@@ -421,13 +442,14 @@ function altOrders(ch, fp) {
 }
 function syncCustom(list) {
   for (let i = ALLEX.length - 1; i >= 0; i--) if (ALLEX[i].uid === "bs") { delete EB[ALLEX[i].id]; delete EGRP[ALLEX[i].id]; ALLEX.splice(i, 1); }
+  GTRK = null; /* buộc tính lại nhóm (cả số câu nhóm Bổ sung) ở lần gọi TRK() kế tiếp */
   const lex = customLex(list);
   (list || []).forEach(v => {
     if (!v.ex || !v.ex.zh || v.ex.id) return; /* ex.id != "" = ví dụ có sẵn trong bài học → không đưa vào Nhóm 7 */
     const z = normZh(v.ex.zh); if (!z) return;
     const m = z.match(/[。！？]$/), fp = m ? m[0] : "", ch = segment(fp ? z.slice(0, -1) : z, v.zh, lex); if (!ch.length) return;
     const e = { id: "vx-" + v.id, lv: "b", src: "vx", uid: "bs", zh: ch.join("") + fp, py: v.ex.py || "", vi: v.ex.vi || "", ch, fp, ord: true, alt: [], vid: v.id };
-    e.canOrder = ch.length >= 3; e.okSet = new Set([e.zh].concat(altOrders(ch, fp), Array.isArray(v.ex.alts) ? v.ex.alts : [])); EB[e.id] = e; ALLEX.push(e); EGRP[e.id] = 6;
+    e.canOrder = ch.length >= 3; e.okSet = new Set([e.zh].concat(altOrders(ch, fp), Array.isArray(v.ex.alts) ? v.ex.alts : [])); EB[e.id] = e; ALLEX.push(e);
   });
 }
 function itemInfo(key) {
@@ -442,7 +464,7 @@ const TRACKS = {
   a: { ic: "🚀", name: "Nâng cao", desc: "Ví dụ nâng cao: câu dài hơn, tình huống thực tế", tabs: ["a"] },
   c: { ic: "🧩", name: "Tổng hợp", desc: "Gộp tất cả: Cơ bản + Nâng cao + Phân biệt cấu trúc dễ nhầm", tabs: ["b", "a", "m", "i"] }
 };
-function TRK() { return TRACKS[S.nav.track] ? S.nav.track : "b"; }
+function TRK() { const t = TRACKS[S.nav.track] ? S.nav.track : "b"; if (t !== GTRK) regroup(t); return t; }
 function unitInTrack(u, t) { t = t || TRK(); return t === "c" ? true : !u.cmp; }
 function exTrack(e) { if (e.uid === "bs") return TRK(); const u = UB[e.uid]; return u.cmp ? "c" : e.lv === "a" ? "a" : "b"; }
 function exInTrack(e, t) { t = t || TRK(); return t === "c" || e.uid === "bs" || exTrack(e) === t; }
@@ -592,6 +614,26 @@ function totals() {
   return { n, c };
 }
 /* ============ PHÁT ÂM ============ */
+/* ---------- Bỏ hậu tố 儿 (erhua) trước khi đưa cho giọng đọc: 点儿 → 点, 玩儿 → 玩, 一会儿 → 一会. Chữ hiển thị giữ nguyên. ---------- */
+const ER_KEEP = [
+  /* 儿 là một chữ thật (đọc “ér” đầy đủ): con cái, trẻ em */
+  "儿子", "儿女", "儿童", "儿媳", "儿孙", "儿时", "儿科", "儿歌", "儿化", "女儿", "孙儿", "男儿", "生儿育女",
+  "婴儿", "幼儿", "幼儿园", "托儿所", "少儿", "胎儿", "育儿", "孤儿", "弃儿", "患儿", "宠儿", "健儿", "妻儿",
+  "混血儿", "新生儿", "早产儿", "留守儿"
+];
+const ER_RE = new RegExp(ER_KEEP.slice().sort((a, b) => b.length - a.length).join("|") + "|儿", "g");
+/* rem (tuỳ chọn): mảng nhận vị trí (trong chuỗi đã xử lý) nơi một chữ 儿 đã bị bỏ — dùng để căn highlight theo charIndex */
+function ttsPrep(text, rem) {
+  const s = String(text); if (s.indexOf("儿") < 0) return s;
+  let out = "", pos = 0, m; ER_RE.lastIndex = 0;
+  while ((m = ER_RE.exec(s))) {
+    out += s.slice(pos, m.index);
+    if (m[0] === "儿" && m.index > 0 && /[\u4e00-\u9fff]/.test(s[m.index - 1])) { if (rem) rem.push(out.length); }
+    else out += m[0];
+    pos = m.index + m[0].length;
+  }
+  return out + s.slice(pos);
+}
 const TTS = {
   ok: "speechSynthesis" in window && "SpeechSynthesisUtterance" in window, voice: null, hasZh: null, warned: false,
   pick() {
@@ -608,7 +650,7 @@ const TTS = {
     if (this.hasZh === false && !this.warned) { this.warned = true; toast("Thiết bị chưa có giọng tiếng Trung (zh-CN). Hãy cài giọng Trung trong cài đặt hệ thống."); }
     try {
       speechSynthesis.cancel();
-      const u = new SpeechSynthesisUtterance(String(text));
+      const u = new SpeechSynthesisUtterance(ttsPrep(text));
       u.lang = "zh-CN"; if (this.voice) u.voice = this.voice;
       u.rate = S.settings.rate || 1; u.pitch = 1; u.volume = 1;
       document.querySelectorAll(".speaking").forEach(b => b.classList.remove("speaking"));
@@ -1133,7 +1175,7 @@ function buildPracticeKeys(scope, only) {
   else {
     const g = Number(scope); list = trackEx().filter(e => EGRP[e.id] === g && (!only || notOk(e)));
     const have = new Set(list.map(e => e.id));
-    trackEx().forEach(e => { const r = S.pq[e.id], h = EGRP[e.id]; if (g < 6 && r && r.s === "wr" && h < g && g - h <= 2 && !have.has(e.id)) { have.add(e.id); list.push(e); } });
+    trackEx().forEach(e => { const r = S.pq[e.id], h = EGRP[e.id]; if (g < GROUPS.length - 1 && r && r.s === "wr" && h < g && g - h <= 2 && !have.has(e.id)) { have.add(e.id); list.push(e); } });
   }
   return shuffle(list).map(e => keyOf("e", e.id, pickType(e)));
 }
@@ -1186,7 +1228,7 @@ function pgPractice() {
   const row = (v, title, sub) => `<button class="opt ${String(PS.scope) === v ? "sel" : ""}" data-act="pset" data-k="scope" data-v="${v}" aria-pressed="${String(PS.scope) === v}"><div style="font-weight:700">${title}</div><div class="small muted">${sub}</div></button>`;
   if (PS.scope === "all") PS.scope = "rv";
   const RP = reviewPlan(), dueN = RP.freq.length + RP.over.length + RP.today.length, dueU = dueUnitCount();
-  const p = S.pr && S.pr.keys.length && itemInTrack(S.pr.keys[0]) ? S.pr : null;
+  const p = S.pr && S.pr.keys.length && itemInTrack(S.pr.keys[0]) && (S.pr.scope === "all" || GROUPS[Number(S.pr.scope)]) ? S.pr : null;
   const gs = GROUPS.map((g, i) => [g, i, trackEx().filter(e => EGRP[e.id] === i).length]).filter(x => x[2] > 0);
   setPage(`<h2 class="sec" style="margin-top:6px">Luyện tập</h2>
   <div class="row" style="margin:4px 0 10px">${mascot()}<div class="bubble grow">${introOn() ? "Luyện đều đặn, mình sẽ lớn lên cùng bạn nhé! 🌱" : idiomBlock()}</div></div>
@@ -1196,7 +1238,7 @@ function pgPractice() {
     ${gs.length > 1 ? gs.map(([g, i, n]) => row(String(i), g[0] + " · " + g[1], n + " câu · đạt " + okN(i) + (wrN(i) ? " · " + wrN(i) + " câu cần nhắc lại" : ""))).join("") : ""}</div>
   <label class="row small" style="margin:12px 0;${PS.scope === "rv" ? "display:none" : ""}"><input type="checkbox" id="ponly" ${PS.only ? "checked" : ""} style="width:20px;height:20px"> <span>Chỉ câu chưa đạt (khuyên dùng)</span></label>
   <button class="btn primary block" style="margin-top:${PS.scope === "rv" ? 12 : 0}px" data-act="pstart">${PS.scope === "rv" ? "▶ Bắt đầu ôn tập (20 câu)" : "▶ Bắt đầu luyện tập"}</button></div>
-  <div class="card cream small"><b>Cách hoạt động</b><br><b>🔁 Ôn tập:</b> 20 câu chọn ngẫu nhiên (sắp xếp từ, nghe chọn; không có bài công thức), tập trung vào các câu bạn từng làm sai ở phần Luyện tập và Luyện bài này. Hệ thống tự chấm mức nhớ sau mỗi câu.<br><br><b>Luyện theo nhóm:</b> mỗi câu có thể ra dạng sắp xếp từ hoặc nghe chọn. Câu sai được hỏi lại ngay trong phiên, rồi nhắc lại ở nhóm đó và 2 nhóm kế tiếp. Câu sai phải trả lời đúng 3 lần liên tiếp (ở các phiên khác nhau) mới được tính là đúng. Bạn có thể thoát và tiếp tục bất cứ lúc nào, kết quả từng câu đều được lưu.<br><br><b>Tiến độ riêng:</b> kết quả ở thẻ này tính riêng với phần “Luyện bài này” trong từng bài học, nhưng cả hai đều được tính vào điểm thăng cấp của trái cây. Nhóm 7 · Bổ sung chỉ gồm các câu ví dụ do bạn tự thêm vào thẻ từ vựng.</div>`);
+  <div class="card cream small"><b>Cách hoạt động</b><br><b>🔁 Ôn tập:</b> 20 câu chọn ngẫu nhiên (sắp xếp từ, nghe chọn; không có bài công thức), tập trung vào các câu bạn từng làm sai ở phần Luyện tập và Luyện bài này. Hệ thống tự chấm mức nhớ sau mỗi câu.<br><br><b>Luyện theo nhóm:</b> mỗi câu có thể ra dạng sắp xếp từ hoặc nghe chọn. Câu sai được hỏi lại ngay trong phiên, rồi nhắc lại ở nhóm đó và 2 nhóm kế tiếp. Câu sai phải trả lời đúng 3 lần liên tiếp (ở các phiên khác nhau) mới được tính là đúng. Bạn có thể thoát và tiếp tục bất cứ lúc nào, kết quả từng câu đều được lưu.<br><br><b>Tiến độ riêng:</b> kết quả ở thẻ này tính riêng với phần “Luyện bài này” trong từng bài học, nhưng cả hai đều được tính vào điểm thăng cấp của trái cây. nhóm Bổ sung chỉ gồm các câu ví dụ do bạn tự thêm vào thẻ từ vựng.</div>`);
   $("#ponly").addEventListener("change", e => { PS.only = e.target.checked; });
 }
 /* ============ FLASHCARDS ============ */
@@ -1444,7 +1486,7 @@ function parseVocabBulk(text) {
 }
 function openVocabBulk(text) {
   const sample = "你好 / nǐ hǎo / Nhĩ hảo / Xin chào\n你好！你叫什么名字？\nNǐ hǎo! Nǐ jiào shénme míngzi?\nXin chào! Bạn tên là gì?\n\n今天 / jīntiān / Kim thiên / Hôm nay\n今天你忙吗？\nJīntiān nǐ máng ma?\nHôm nay bạn có bận không?";
-  const body = `<div class="bulkfmt"><b>Cách 1 · Nhờ ChatGPT soạn:</b> bấm nút bên dưới để sao chép prompt, dán vào ChatGPT, gõ danh sách từ của bạn ở cuối, rồi chép kết quả dán vào ô này.<br><button type="button" class="btn sm primary" id="bulkCopy" style="margin-top:6px">📋 Sao chép prompt cho ChatGPT</button></div><div class="bulkfmt"><b>Cách 2 · Tự gõ:</b> mỗi từ một khối, cách nhau một dòng trống:<br><b>chữ Hán / pinyin / Hán Việt / nghĩa</b><br><span class="muted">(tùy chọn) 3 dòng tiếp theo: câu ví dụ · pinyin · nghĩa. Có ví dụ thì app tự tạo bài tập ở Nhóm 7 · Bổ sung.</span></div><textarea id="bulkTa" class="bulkta" style="min-height:220px" spellcheck="false" autocomplete="off" lang="zh-CN" placeholder="${esc(sample)}">${esc(text)}</textarea><div class="bulksum" id="bulkSum"></div>`;
+  const body = `<div class="bulkfmt"><b>Cách 1 · Nhờ ChatGPT soạn:</b> bấm nút bên dưới để sao chép prompt, dán vào ChatGPT, gõ danh sách từ của bạn ở cuối, rồi chép kết quả dán vào ô này.<br><button type="button" class="btn sm primary" id="bulkCopy" style="margin-top:6px">📋 Sao chép prompt cho ChatGPT</button></div><div class="bulkfmt"><b>Cách 2 · Tự gõ:</b> mỗi từ một khối, cách nhau một dòng trống:<br><b>chữ Hán / pinyin / Hán Việt / nghĩa</b><br><span class="muted">(tùy chọn) 3 dòng tiếp theo: câu ví dụ · pinyin · nghĩa. Có ví dụ thì app tự tạo bài tập ở nhóm Bổ sung.</span></div><textarea id="bulkTa" class="bulkta" style="min-height:220px" spellcheck="false" autocomplete="off" lang="zh-CN" placeholder="${esc(sample)}">${esc(text)}</textarea><div class="bulksum" id="bulkSum"></div>`;
   let cur = text || "";
   modal("Thêm thẻ từ vựng theo danh sách", body, "Thêm vào thẻ", "primary", () => {
     const r = parseVocabBulk(cur);
@@ -1452,7 +1494,7 @@ function openVocabBulk(text) {
     const t = now(); S.vocab = r.ok.map((w, i) => ({ id: "v" + (t + i).toString(36) + rnd(1e4).toString(36), zh: w.zh, py: w.py, hv: w.hv, vi: w.vi, ex: w.ex || null, t, k: "" })).concat(S.vocab);
     syncCustom(S.vocab); save(); VC.built = false; VC.mode = "all";
     const nex = r.ok.filter(w => w.ex).length;
-    toast("Đã thêm " + r.ok.length + " thẻ" + (nex ? " (" + nex + " có ví dụ → Nhóm 7 · Bổ sung)" : "") + (r.dup.length ? " · bỏ qua " + r.dup.length + " từ đã có" : "") + (r.noex.length ? " · " + r.noex.length + " ví dụ không dùng được" : "") + (r.bad.length ? " · " + r.bad.length + " dòng lỗi" : ""));
+    toast("Đã thêm " + r.ok.length + " thẻ" + (nex ? " (" + nex + " có ví dụ → nhóm Bổ sung)" : "") + (r.dup.length ? " · bỏ qua " + r.dup.length + " từ đã có" : "") + (r.noex.length ? " · " + r.noex.length + " ví dụ không dùng được" : "") + (r.bad.length ? " · " + r.bad.length + " dòng lỗi" : ""));
     if (/^#\/cards/.test(location.hash) && FC.cat === "v") pgVocab(); hlRefresh();
   });
   const mbs = document.querySelectorAll(".modal-bg"), bg = mbs[mbs.length - 1]; if (!bg) return;
@@ -1478,7 +1520,7 @@ function openVocabForm(d) {
     <div id="vLes" style="display:${d.mode === "lesson" && les ? "block" : "none"}">${les ? `<div class="card cream" style="margin:8px 0 0;padding:10px"><div class="zh" style="font-size:18px;line-height:1.5">${vocabHL(les.zh, d.zh)}</div><div style="color:var(--gd);font-size:13px">${esc(les.py)}</div><div style="margin-top:3px">${esc(les.vi)}</div></div>` : ""}</div>
     <div id="vDict" style="display:none"></div>
     <div id="vOwn" style="display:${d.mode === "own" ? "block" : "none"}">${lab("vExZh", "Câu ví dụ (chữ Hán, nên chứa từ trên)")}<input type="text" id="vExZh" value="${esc(d.exZh)}" placeholder="ví dụ: 我去图书馆。" autocomplete="off" lang="zh-CN">${lab("vExPy", "Pinyin của câu (không bắt buộc)")}<input type="text" id="vExPy" value="${esc(d.exPy)}" autocomplete="off">${lab("vExVi", "Nghĩa của câu")}<input type="text" id="vExVi" value="${esc(d.exVi)}" placeholder="Tôi đi thư viện." autocomplete="off"></div>
-    <div class="tiny muted" style="margin-top:8px">Chỉ ví dụ do chính bạn thêm (tự nhập, lấy từ bài khóa của bạn hoặc từ gợi ý từ điển) mới thành bài sắp xếp câu ở Luyện tập › Nhóm 7 · Bổ sung.</div>`;
+    <div class="tiny muted" style="margin-top:8px">Chỉ ví dụ do chính bạn thêm (tự nhập, lấy từ bài khóa của bạn hoặc từ gợi ý từ điển) mới thành bài sắp xếp câu ở Luyện tập › nhóm Bổ sung.</div>`;
   modal(d.fixed ? "Thêm vào thẻ từ vựng" : "Thêm thẻ từ vựng mới", body, "Thêm", "primary", () => {
     const zh = (d.zh || "").replace(/\s+/g, ""), bad = m => { toast(m); openVocabForm(d); };
     if (!zh || !/[\u4e00-\u9fff]/.test(zh)) return bad("Cần nhập từ bằng chữ Hán.");
@@ -1496,7 +1538,7 @@ function openVocabForm(d) {
     }
     S.vocab.unshift({ id: "v" + now().toString(36) + rnd(1e4).toString(36), zh, py: d.py, hv: d.hv, vi: d.vi, ex, t: now(), k: "" });
     syncCustom(S.vocab); save(); VC.built = false;
-    toast(ex && !ex.id ? "Đã thêm “" + zh + "” và tạo bài tập ở Nhóm 7 · Bổ sung 📝" : "Đã thêm “" + zh + "” vào thẻ từ vựng 📝");
+    toast(ex && !ex.id ? "Đã thêm “" + zh + "” và tạo bài tập ở nhóm Bổ sung 📝" : "Đã thêm “" + zh + "” vào thẻ từ vựng 📝");
     if (/^#\/cards/.test(location.hash) && FC.cat === "v") pgVocab(); else if (/^#\/text\//.test(location.hash)) bkRefreshVocab();
     hlRefresh();
   });
@@ -2247,10 +2289,10 @@ function txPlayAt(i, once) {
   if (!TTS.ok || TP.silent || !txVoiceOk()) { silent(); return; }
   try {
     const wasCancelled = (!sk && !TW.busy) ? ttsCancelIfBusy() : false;
-    const ut = new SpeechSynthesisUtterance(text); ut.lang = "zh-CN"; let vo = TTS.voice, pt = (!R.multi || R.mains.includes(u.spk)) ? 1 : 0.9; if (R.multi) { const mk = R.mains.indexOf(u.spk); if (mk >= 0) { const bo = bkVoiceFor(mk); if (bo) { if (bo.voice) vo = bo.voice; pt = bo.pitch; } } } if (vo) { ut.voice = vo; if (vo.lang) ut.lang = vo.lang; } ut.pitch = pt; ut.rate = rate;
+    const rem = [], spoken = ttsPrep(text, rem), ut = new SpeechSynthesisUtterance(spoken); ut.lang = "zh-CN"; let vo = TTS.voice, pt = (!R.multi || R.mains.includes(u.spk)) ? 1 : 0.9; if (R.multi) { const mk = R.mains.indexOf(u.spk); if (mk >= 0) { const bo = bkVoiceFor(mk); if (bo) { if (bo.voice) vo = bo.voice; pt = bo.pitch; } } } if (vo) { ut.voice = vo; if (vo.lang) ut.lang = vo.lang; } ut.pitch = pt; ut.rate = rate;
     let started = false; const t0 = Date.now();
     ut.onstart = () => { started = true; tS = Date.now(); clearTimeout(TP.wd); tick(); };
-    ut.onboundary = ev => { if (g !== TP.gen || (ev.name && ev.name !== "word")) return; gotB = true; hl((text.slice(0, ev.charIndex).match(/[\u4e00-\u9fff]/g) || []).length); };
+    ut.onboundary = ev => { if (g !== TP.gen || (ev.name && ev.name !== "word")) return; gotB = true; hl((spoken.slice(0, ev.charIndex).match(/[\u4e00-\u9fff]/g) || []).length + rem.filter(q => q <= ev.charIndex).length); };
     ut.onend = () => { if (g !== TP.gen) return; clearTimeout(TP.wd); TW.at = Date.now(); if (tS) { const m = (Date.now() - tS) * rate / tot; if (m > 80 && m < 900) TP.msw[key] = TP.msw[key] ? TP.msw[key] * 0.5 + m * 0.5 : m; } if (Date.now() - t0 < 150 && n >= 4) silent(); else next(); };
     ut.onerror = ev => { if (g !== TP.gen || (ev && (ev.error === "canceled" || ev.error === "interrupted"))) return; clearTimeout(TP.wd); silent(); };
     const go = () => {
