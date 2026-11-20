@@ -285,6 +285,11 @@ html.lndark .pill.src-doc{background:var(--g2);color:var(--gd)}
 .pklist .zh{font-size:20px;font-weight:700}
 .pklist .pv{min-width:0;font-size:13px;color:var(--gd)}
 .pkbar{display:flex;gap:8px;align-items:center;justify-content:space-between}
+.pkgrp{position:sticky;top:0;z-index:1;padding:6px 12px;font-size:12px;font-weight:700;background:var(--g1);color:var(--gd);border-bottom:1px solid var(--g2)}
+.pklist .pkname{flex:1;min-width:0;font-size:14px}
+.fctool .lnpick{flex:1;min-width:0;min-height:42px;font-size:14px;border-radius:12px;display:inline-flex;align-items:center;justify-content:center;gap:6px}
+.fctool .lnpick .ico{width:16px;height:16px;stroke-width:1.8}
+.fcp>.fctool .lnpick{min-height:38px}
 .fcact .btn{min-height:48px;padding:0 4px;border-radius:14px;font-size:15px;font-weight:700;min-width:0;white-space:nowrap}
 .fcact .nav{background:#fff;border:1.5px solid var(--g2);font-size:18px;color:var(--gd)}
 .fcact .nav.del{font-size:16px}
@@ -1285,20 +1290,54 @@ function cardKeyList() {
 }
 function buildDeck() { let d = cardKeyList(); if (FC.shuffle) d = shuffle(d); FC.deck = d; FC.i = 0; FC.flip = false; FC.built = true; lnReset(); }
 /* ===== Thẻ Ngữ pháp: chế độ Luyện nghe (câu ví dụ tiếng Trung → nghĩa tiếng Việt) ===== */
-const LN = { playing: false, i: 0, gen: 0, timer: 0, wd: 0, vi: true, show: false, lv: "a", gap: 1800, done: false, deck: [] };
+const LN = { playing: false, i: 0, gen: 0, timer: 0, wd: 0, vi: true, show: false, lv: "a", gap: 1800, done: false, deck: [], loop: true, sel: null };
 function lnViVoice() { if (!TTS.ok) return null; const vs = speechSynthesis.getVoices() || []; return vs.find(v => /^vi[-_]VN/i.test(v.lang)) || vs.find(v => /^vi/i.test(v.lang)) || null; }
 /* Chưa nạp xong danh sách giọng thì cứ thử đọc; nạp xong mà không có giọng Việt thì bỏ qua phần đọc nghĩa */
 function lnViOk() { if (!TTS.ok) return false; const vs = speechSynthesis.getVoices() || []; return !vs.length || !!lnViVoice(); }
-/* Bộ câu nghe (xáo ngẫu nhiên): mặc định = câu ví dụ Nâng cao + câu ví dụ trong thẻ từ vựng của người học (nhóm Bổ sung).
-   Tắt "Chỉ Nâng cao" thì thêm cả câu Cơ bản. Chọn một bài cụ thể thì chỉ lấy câu của bài đó (không gồm thẻ từ vựng). */
+/* Các mục có thể chọn để nghe, theo thứ tự hiển thị: bài đã hoàn thành → bài khóa → bài chưa học → câu ví dụ thẻ từ vựng (Bổ sung).
+   LN.sel = null nghĩa là nghe tất cả; ngược lại là mảng id mục đã chọn ("u:<bài>", "t:<bài khóa>", "bs"). */
+function lnExList(u) { return u.ex.filter(e => LN.lv !== "a" || e.lv === "a").map(e => EB[e.id] || e).filter(e => e && e.zh); }
+function lnOptions() {
+  const L = UNITS.filter(u => !u.cmp).map(u => ({ id: "u:" + u.id, kind: "u", u, n: lnExList(u).length, done: !!S.done[u.id] })).filter(o => o.n);
+  const T = S.texts.map(t => ({ id: "t:" + t.id, kind: "t", t, n: bkUnits(t).filter(x => x.cj).length })).filter(o => o.n);
+  const B = ALLEX.filter(e => e.uid === "bs" && e.zh && e.vi);
+  const O = L.filter(o => o.done).concat(T, L.filter(o => !o.done));
+  if (B.length) O.push({ id: "bs", kind: "bs", n: B.length, list: B });
+  return O;
+}
+/* Bộ câu nghe: đi theo thứ tự các mục; câu ví dụ trong mỗi bài được xáo ngẫu nhiên, câu của bài khóa giữ đúng thứ tự.
+   Bật nút xáo trộn thì xáo toàn bộ. */
 function lnBuild() {
-  let d = [];
-  UNITS.forEach(u => {
-    if (u.cmp || (FC.scope !== "all" && FC.scope !== u.id)) return;
-    u.ex.forEach(e => { if (LN.lv === "a" && e.lv !== "a") return; d.push(keyOf("e", e.id, "card")); });
+  const want = LN.sel ? new Set(LN.sel) : null, d = [];
+  lnOptions().forEach(o => {
+    if (want && !want.has(o.id)) return;
+    if (o.kind === "t") bkUnits(o.t).forEach(x => { if (x.cj) d.push({ zh: x.h, vi: x.v || "", txt: true, tag: "📖 " + o.t.title }); });
+    else if (o.kind === "u") shuffle(lnExList(o.u)).forEach(e => d.push({ zh: e.zh, vi: e.vi || "", tag: lessonLabel(o.u) }));
+    else shuffle(o.list).forEach(e => d.push({ zh: e.zh, vi: e.vi || "", tag: "🃏 Thẻ từ vựng" }));
   });
-  if (FC.scope === "all") ALLEX.forEach(e => { if (e.uid === "bs" && e.zh && e.vi) d.push(keyOf("e", e.id, "card")); });
-  return shuffle(d.filter(k => { const i = itemInfo(k); return i && i.kind === "e"; }));
+  return FC.shuffle ? shuffle(d) : d;
+}
+function lnPickBtn() { return `<button type="button" class="chip lnpick" data-act="ln-pick">${ico("hp")} Chọn mục muốn nghe (${LN.sel ? LN.sel.length + " mục" : "tất cả"})</button>`; }
+function openLnPick() {
+  const opts = lnOptions(), all = new Set(opts.map(o => o.id)), sel = new Set(LN.sel ? LN.sel.filter(k => all.has(k)) : all);
+  const grp = { done: "✅ Bài đã hoàn thành", text: "📖 Bài khóa", todo: "📚 Bài chưa học", bs: "🃏 Thẻ từ vựng (Bổ sung)" };
+  const gk = o => o.kind === "t" ? "text" : o.kind === "bs" ? "bs" : o.done ? "done" : "todo";
+  let html = "", last = "";
+  opts.forEach(o => {
+    const k = gk(o); if (k !== last) { last = k; html += `<div class="pkgrp">${grp[k]}</div>`; }
+    const name = o.kind === "t" ? esc(o.t.title) : o.kind === "u" ? esc(lessonLabel(o.u)) + " · " + esc(o.u.vi) : "Câu ví dụ của các từ đã thêm";
+    html += `<label><input type="checkbox" data-pkid="${esc(o.id)}" ${sel.has(o.id) ? "checked" : ""}><span class="pkname">${name}</span><span class="tiny muted">${o.n} câu</span></label>`;
+  });
+  const body = `<div class="pkbar"><span class="tiny muted" id="pkCnt"></span><span><button type="button" class="btn sm ghost" data-pk="all">Chọn hết</button> <button type="button" class="btn sm ghost" data-pk="none">Bỏ hết</button></span></div><div class="pklist">${html}</div>`;
+  modal("Chọn mục muốn nghe", body, "Nghe các mục đã chọn", "primary", () => {
+    if (!sel.size) { toast("Bạn chưa chọn mục nào."); return; }
+    LN.sel = sel.size === all.size ? null : [...sel]; lnReset(); pgCards();
+  });
+  const mbs = document.querySelectorAll(".modal-bg"), bg = mbs[mbs.length - 1]; if (!bg) return;
+  const cnt = () => { const c = bg.querySelector("#pkCnt"); if (c) c.textContent = "Đã chọn " + sel.size + "/" + all.size + " mục"; };
+  bg.addEventListener("change", e => { const c = e.target.closest("[data-pkid]"); if (!c) return; if (c.checked) sel.add(c.dataset.pkid); else sel.delete(c.dataset.pkid); cnt(); });
+  bg.addEventListener("click", e => { const b = e.target.closest("[data-pk]"); if (!b) return; const on = b.dataset.pk === "all"; bg.querySelectorAll("[data-pkid]").forEach(c => { c.checked = on; if (on) sel.add(c.dataset.pkid); else sel.delete(c.dataset.pkid); }); cnt(); });
+  cnt();
 }
 function lnReset() { lnStop(); LN.i = 0; LN.done = false; LN.deck = lnBuild(); }
 function lnStop() {
@@ -1325,20 +1364,30 @@ function lnSay(text, lang, step, done) {
     setTimeout(() => { if (g !== LN.gen) return; try { speechSynthesis.speak(u); } catch (e) { end(); } }, 40);
   } catch (e) { end(); }
 }
-/* Mỗi câu: Trung → Trung → Việt → Trung, các lần cách nhau LN.gap (1,8 giây) */
+/* Mỗi câu: Trung → Trung → Việt → Trung, các lần cách nhau LN.gap (1,8 giây).
+   Riêng câu của bài khóa có từ 8 chữ Hán trở xuống: đọc Trung 1 lần rồi đọc nghĩa Việt là xong.
+   Hết danh sách: tự lặp lại từ đầu (mặc định), tắt bằng nút "Lặp lại". */
 function lnPlay(i) {
   const dk = LN.deck; if (!dk.length) return;
   if (!TTS.ok) { toast("Trình duyệt này không hỗ trợ phát âm (Web Speech API)."); return; }
-  if (i >= dk.length) { lnStop(); LN.done = true; LN.i = dk.length - 1; lnRender(); toast("Đã nghe hết " + dk.length + " câu"); return; }
+  if (i >= dk.length) {
+    if (LN.loop) i = 0;
+    else { lnStop(); LN.done = true; LN.i = dk.length - 1; lnRender(); toast("Đã nghe hết " + dk.length + " câu"); return; }
+  }
   if (TTS.hasZh === false && !TTS.warned) { TTS.warned = true; toast("Thiết bị chưa có giọng tiếng Trung (zh-CN). Hãy cài giọng Trung trong cài đặt hệ thống."); }
   if (LN.vi && !lnViOk() && !LN.warnedVi) { LN.warnedVi = true; toast("Thiết bị chưa có giọng tiếng Việt: chỉ đọc câu tiếng Trung."); }
   clearTimeout(LN.timer); LN.i = i; LN.playing = true; LN.done = false; TTS.gen++;
-  const g = ++LN.gen, e = itemInfo(dk[i]).e, gap = fn => { LN.timer = setTimeout(() => { if (g === LN.gen) fn(); }, LN.gap); };
+  const g = ++LN.gen, e = dk[i], gap = fn => { LN.timer = setTimeout(() => { if (g === LN.gen) fn(); }, LN.gap); };
   lnRender();
-  const useVi = LN.vi && lnViOk();
+  const useVi = LN.vi && lnViOk() && !!e.vi, next = () => gap(() => lnPlay(i + 1));
+  const han = [...String(e.zh)].filter(c => /[\u4e00-\u9fff]/.test(c)).length;
+  if (e.txt && han <= 8) {
+    lnSay(e.zh, "zh", "Tiếng Trung", () => { if (useVi) gap(() => lnSay(e.vi, "vi", "Nghĩa tiếng Việt", next)); else next(); });
+    return;
+  }
   lnSay(e.zh, "zh", "Tiếng Trung · lần 1", () => gap(() =>
     lnSay(e.zh, "zh", "Tiếng Trung · lần 2", () => gap(() => {
-      const last = () => lnSay(e.zh, "zh", "Tiếng Trung · lần 3", () => gap(() => lnPlay(i + 1)));
+      const last = () => lnSay(e.zh, "zh", "Tiếng Trung · lần 3", next);
       if (useVi) lnSay(e.vi, "vi", "Nghĩa tiếng Việt", () => gap(last)); else last();
     }))));
 }
@@ -1349,18 +1398,18 @@ function lnGo(d) {
 function lnRender() {
   const box = $("#fcBody"); if (!box) return;
   const dk = LN.deck;
-  if (!dk.length) { box.innerHTML = fcEmpty(LN.lv === "a" ? "Bài này chưa có câu Nâng cao để nghe." : "Bài này chưa có câu để nghe.", "freset", "Xem tất cả các bài") + `<div class="lnopt" style="justify-content:center">${lnChip("lv", "Chỉ Nâng cao", LN.lv === "a")}</div>`; return; }
+  if (!dk.length) { box.innerHTML = fcEmpty(LN.sel ? "Các mục đã chọn chưa có câu để nghe." : LN.lv === "a" ? "Chưa có câu Nâng cao để nghe." : "Chưa có câu để nghe.", "freset", "Chọn tất cả các mục") + `<div class="lnopt" style="justify-content:center">${lnChip("lv", "Chỉ Nâng cao", LN.lv === "a")}</div>`; return; }
   LN.i = clamp(LN.i, 0, dk.length - 1);
-  const info = itemInfo(dk[LN.i]), e = info.e, u = info.u;
+  const e = dk[LN.i];
   const noVi = LN.vi && TTS.ok && !lnViOk();
-  box.innerHTML = fcProg(LN.i, dk.length) +
+  box.innerHTML = fcProg(LN.i, dk.length) + `<div class="tiny muted" style="text-align:center">${esc(e.tag || "")}</div>` +
     `<div id="lnCard" class="lncard" data-act="ln-reveal" role="button" tabindex="0" aria-label="Chạm để hiện/ẩn chữ">` +
     (LN.show
       ? `<div class="lnzh zh big">${esc(e.zh)}</div><div id="lnStep" class="tiny muted"></div>`
       : `<div class="lnhp${LN.playing ? " on" : ""}" aria-hidden="true">${ico("hp")}</div><div id="lnStep" class="tiny muted">${LN.playing ? "" : "Chữ đang ẩn · chạm để xem"}</div>`) +
     `</div>
-    <div class="tiny muted" style="text-align:center">${LN.playing ? "Đang phát…" : LN.done ? "Đã hết danh sách – bấm ▶ để nghe lại từ đầu" : "Mỗi câu: Trung ×2 → Việt → Trung, cách nhau 1,8 giây"}${noVi ? "<br>Máy chưa có giọng tiếng Việt: sẽ bỏ qua phần đọc nghĩa." : ""}</div>
-    <div class="lnopt">${lnChip("lv", "Chỉ Nâng cao", LN.lv === "a")}${lnChip("vi", "Đọc nghĩa Việt", LN.vi)}${lnChip("show", ico("eye") + " Hiện chữ", LN.show)}${rateCtl()}</div>
+    <div class="tiny muted" style="text-align:center">${LN.playing ? "Đang phát…" : LN.done ? "Đã hết danh sách – bấm ▶ để nghe lại từ đầu" : "Mỗi câu: Trung ×2 → Việt → Trung, cách nhau 1,8 giây<br>Bài khóa: câu từ 8 chữ Hán trở xuống chỉ đọc Trung ×1 → Việt"}${noVi ? "<br>Máy chưa có giọng tiếng Việt: sẽ bỏ qua phần đọc nghĩa." : ""}</div>
+    <div class="lnopt">${lnChip("lv", "Chỉ Nâng cao", LN.lv === "a")}${lnChip("vi", "Đọc nghĩa Việt", LN.vi)}${lnChip("loop", "🔁 Lặp lại", LN.loop)}${lnChip("show", ico("eye") + " Hiện chữ", LN.show)}${rateCtl()}</div>
     <div class="fcact v5"><button class="btn nav" data-act="ln-prev" aria-label="Câu trước" ${LN.i === 0 ? "disabled" : ""}>${ico("prev")}</button><button class="btn nav lnplay" data-act="ln-play" aria-label="${LN.playing ? "Tạm dừng" : "Phát"}">${ico(LN.playing ? "pause" : "play")}</button><button class="btn nav" data-act="ln-next" aria-label="Câu sau" ${LN.i >= dk.length - 1 ? "disabled" : ""}>${ico("next")}</button></div>`;
 }
 function lnChip(k, t, on) { return `<button type="button" class="chip ${on ? "on" : ""}" data-act="ln-opt" data-k="${k}" aria-pressed="${on}">${t}</button>`; }
@@ -1898,12 +1947,13 @@ function act(a, el) {
     case "q-flip": { const q = Q.q; q.flipped = !q.flipped; refreshSession(); break; }
     case "next": { const q = Q.q; if (q && !q.rated) sessRate(autoRating(q)); break; }
     case "fshuffle": FC.shuffle = !FC.shuffle; buildDeck(); pgCards(); break;
-    case "freset": FC.kind = "sent"; FC.scope = "all"; buildDeck(); pgCards(); break;
+    case "freset": FC.kind = "sent"; FC.scope = "all"; LN.sel = null; buildDeck(); pgCards(); break;
     case "fc-mode": { const m = el.dataset.v === "listen" ? "listen" : "card"; if (m !== FC.mode) { lnStop(); try { if (TTS.ok) speechSynthesis.cancel(); } catch (e) { } FC.mode = m; lnReset(); pgCards(); } break; }
     case "ln-play": if (LN.playing) { lnStop(); lnRender(); } else lnPlay(LN.done ? 0 : LN.i); break;
     case "ln-prev": lnGo(-1); break;
     case "ln-next": lnGo(1); break;
-    case "ln-opt": { const k = el.dataset.k; if (k === "lv") { LN.lv = LN.lv === "a" ? "all" : "a"; lnReset(); lnRender(); } else if (k === "vi" || k === "show") { LN[k] = !LN[k]; lnRender(); } break; }
+    case "ln-opt": { const k = el.dataset.k; if (k === "lv") { LN.lv = LN.lv === "a" ? "all" : "a"; lnReset(); lnRender(); } else if (k === "vi" || k === "show" || k === "loop") { LN[k] = !LN[k]; lnRender(); } break; }
+    case "ln-pick": openLnPick(); break;
     case "ln-reveal": { LN.show = !LN.show; lnRender(); break; }
     case "fc-flip": FC.flip = !FC.flip; { const c = $(".fcard"); if (c) c.classList.toggle("flip", FC.flip); } break;
     case "fc-prev": FC.i--; FC.flip = false; renderFc(); break;
@@ -2119,8 +2169,8 @@ function pgCards() {
   if (!FC.built) buildDeck();
   lnUi(FC.mode === "listen");
   const md = (v, l) => `<button data-act="fc-mode" data-v="${v}" class="${FC.mode === v ? "on" : ""}" aria-pressed="${FC.mode === v}">${l}</button>`;
-  setPage(`<div class="fcp">${fcCatBar()}<div class="seg full lnmode" role="group" aria-label="Chế độ học">${md("card", "Học thẻ")}${md("listen", ico("hp") + " Luyện nghe")}</div>${fcTool("", fcScope("fscope", FC.scope), "fshuffle", FC.shuffle)}<div id="fcBody" class="fcb"></div></div>`);
-  $("#fscope").addEventListener("change", e => { FC.scope = e.target.value; buildDeck(); fcRender(); });
+  setPage(`<div class="fcp">${fcCatBar()}<div class="seg full lnmode" role="group" aria-label="Chế độ học">${md("card", "Học thẻ")}${md("listen", ico("hp") + " Luyện nghe")}</div>${fcTool("", FC.mode === "listen" ? lnPickBtn() : fcScope("fscope", FC.scope), "fshuffle", FC.shuffle)}<div id="fcBody" class="fcb"></div></div>`);
+  const fs0 = $("#fscope"); if (fs0) fs0.addEventListener("change", e => { FC.scope = e.target.value; buildDeck(); fcRender(); });
   fcRender();
 }
 /* ---------- Tách câu: ghép chữ Hán – pinyin – nghĩa theo từng câu ---------- */
