@@ -245,6 +245,35 @@ svg text{font-family:system-ui,sans-serif}
 .fcb .fcard{height:100%;min-height:0}
 .fcb .face{padding:16px;border-radius:20px;box-shadow:var(--shadow)}
 .fcspeak{display:flex;gap:8px}
+/* Giao diện tối khi Luyện nghe */
+html.lndark{color-scheme:dark;--bg:#0d1311;--bg2:#141c18;--card:#17201c;--cream:#17201c;--g1:#1d2823;--g2:#2b3832;--g3:#3c4c44;--gd:#bfe0cc;--gdd:#e7f3ec;--ink:#e3eee8;--muted:#92a89c;--line:#25322b;--shadow:0 2px 12px rgba(0,0,0,.45);--shadow2:0 6px 22px rgba(0,0,0,.5);--hdr:rgba(13,19,17,.92);--py:#8fd9ab;--vi:#b4c8bc;--bluebg:#1b2a38;--warnbg:#33290f;--okbg:#16291e;--badbg:#341b1b}
+html.lndark body{background:var(--bg);color:var(--ink)}
+html.lndark nav.tabs .in a,html.lndark .chip,html.lndark .fcp>.seg.catseg button,html.lndark select,html.lndark input[type=text],html.lndark .fcact .nav,html.lndark .lncard,html.lndark .hsw{background:var(--card);color:var(--gd);border-color:var(--g2)}
+html.lndark nav.tabs .in a.on,html.lndark .seg button.on{background:var(--g2);color:var(--gdd);border-color:var(--g3)}
+html.lndark .seg button{color:var(--gd)}
+html.lndark .fcp>.seg.catseg button{box-shadow:none}
+html.lndark .fcp>.seg.catseg button.on{background:linear-gradient(135deg,var(--a1),var(--a2));color:#06210f;border-color:transparent}
+html.lndark .chip.on{background:var(--g4);border-color:var(--g4);color:#06210f}
+html.lndark .btn.icon,html.lndark .fcact .nav,html.lndark .fctool .shuf{background:var(--g1);color:var(--gd);box-shadow:0 0 0 .5px var(--g2);-webkit-backdrop-filter:none;backdrop-filter:none}
+html.lndark .fctool .shuf.on{background:var(--g4);color:#06210f}
+html.lndark .lncard{border:1px solid var(--line)}
+html.lndark .pill.src-doc{background:var(--g2);color:var(--gd)}
+/* Luyện nghe (thẻ Ngữ pháp) */
+.fcp>.lnmode{margin:0}
+.lncard{flex:1;min-height:0;overflow:auto;background:#fff;border-radius:20px;box-shadow:var(--shadow);padding:16px;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:8px;text-align:center;cursor:pointer}
+.lncard .lnzh,.lncard .lnvi{border-radius:10px;padding:2px 8px;transition:background .2s}
+.lncard .lnvi{font-size:17px;font-weight:600;color:var(--gdd)}
+.lncard[data-say="zh"] .lnzh,.lncard[data-say="vi"] .lnvi{background:rgba(var(--argb),.16)}
+.lnhp{line-height:0;display:inline-block;color:var(--a2);opacity:.85}
+.lnhp .ico{width:76px;height:76px;stroke-width:1.15}
+.lnmode button,.lnopt .chip{display:inline-flex;align-items:center;justify-content:center;gap:6px}
+.lnmode .ico,.lnopt .chip .ico{width:16px;height:16px;stroke-width:1.8}
+.lnhp.on{animation:lnbob 2.4s ease-in-out infinite}
+@keyframes lnbob{0%,100%{transform:translateY(0) scale(1) rotate(-3deg)}50%{transform:translateY(-9px) scale(1.07) rotate(3deg)}}
+@media (prefers-reduced-motion:reduce){.lnhp.on{animation:none}}
+.lnopt{display:flex;flex-wrap:wrap;gap:6px;align-items:center;justify-content:center}
+.lnopt .chip{min-height:32px;padding:3px 10px;font-size:13px}
+.lnplay{color:var(--gd)}
 .fcsp{flex:1;min-height:40px;padding:0 10px;font-size:14px;border-radius:12px;background:var(--g1);color:var(--gdd)}
 .fcact{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .fcact.v5{grid-template-columns:1fr 56px 1fr}
@@ -688,6 +717,8 @@ const ICO = {
   plus: '<path d="M12 5v14M5 12h14"/>',
   set: '<path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/>',
   shuf: '<path d="M16 3.5h4.5V8M20.5 3.5 4 20M20.5 16v4.5H16M14.5 15l6 5.5M4 4l5 5"/>',
+  hp: '<path d="M4 15v-3a8 8 0 0 1 16 0v3"/><rect x="3.5" y="14" width="4" height="6" rx="1.6"/><rect x="16.5" y="14" width="4" height="6" rx="1.6"/>',
+  eye: '<path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="2.6"/>',
   prev: '<path d="M15 5l-7 7 7 7"/>',
   next: '<path d="M9 5l7 7-7 7"/>',
   play: '<path fill="currentColor" stroke="none" d="M8 5.5v13a1 1 0 0 0 1.5.86l10.5-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z"/>',
@@ -1242,7 +1273,7 @@ function pgPractice() {
   $("#ponly").addEventListener("change", e => { PS.only = e.target.checked; });
 }
 /* ============ FLASHCARDS ============ */
-const FC = { cat: "v", scope: "all", kind: "sent", shuffle: false, deck: [], i: 0, flip: false, built: false };
+const FC = { cat: "v", mode: "card", scope: "all", kind: "sent", shuffle: false, deck: [], i: 0, flip: false, built: false };
 function cardKeyList() {
   const list = [];
   trackUnits().forEach(u => {
@@ -1252,7 +1283,111 @@ function cardKeyList() {
   });
   return list;
 }
-function buildDeck() { let d = cardKeyList(); if (FC.shuffle) d = shuffle(d); FC.deck = d; FC.i = 0; FC.flip = false; FC.built = true; }
+function buildDeck() { let d = cardKeyList(); if (FC.shuffle) d = shuffle(d); FC.deck = d; FC.i = 0; FC.flip = false; FC.built = true; lnReset(); }
+/* ===== Thẻ Ngữ pháp: chế độ Luyện nghe (câu ví dụ tiếng Trung → nghĩa tiếng Việt) ===== */
+const LN = { playing: false, i: 0, gen: 0, timer: 0, wd: 0, vi: true, show: false, lv: "a", gap: 1800, done: false, deck: [] };
+function lnViVoice() { if (!TTS.ok) return null; const vs = speechSynthesis.getVoices() || []; return vs.find(v => /^vi[-_]VN/i.test(v.lang)) || vs.find(v => /^vi/i.test(v.lang)) || null; }
+/* Chưa nạp xong danh sách giọng thì cứ thử đọc; nạp xong mà không có giọng Việt thì bỏ qua phần đọc nghĩa */
+function lnViOk() { if (!TTS.ok) return false; const vs = speechSynthesis.getVoices() || []; return !vs.length || !!lnViVoice(); }
+/* Bộ câu nghe (xáo ngẫu nhiên): mặc định = câu ví dụ Nâng cao + câu ví dụ trong thẻ từ vựng của người học (nhóm Bổ sung).
+   Tắt "Chỉ Nâng cao" thì thêm cả câu Cơ bản. Chọn một bài cụ thể thì chỉ lấy câu của bài đó (không gồm thẻ từ vựng). */
+function lnBuild() {
+  let d = [];
+  UNITS.forEach(u => {
+    if (u.cmp || (FC.scope !== "all" && FC.scope !== u.id)) return;
+    u.ex.forEach(e => { if (LN.lv === "a" && e.lv !== "a") return; d.push(keyOf("e", e.id, "card")); });
+  });
+  if (FC.scope === "all") ALLEX.forEach(e => { if (e.uid === "bs" && e.zh && e.vi) d.push(keyOf("e", e.id, "card")); });
+  return shuffle(d.filter(k => { const i = itemInfo(k); return i && i.kind === "e"; }));
+}
+function lnReset() { lnStop(); LN.i = 0; LN.done = false; LN.deck = lnBuild(); }
+function lnStop() {
+  const was = LN.playing; LN.gen++; LN.playing = false; clearTimeout(LN.timer); clearTimeout(LN.wd);
+  if (was) { try { if (TTS.ok) speechSynthesis.cancel(); } catch (e) { } }
+}
+function lnMark(say, step) {
+  const c = document.getElementById("lnCard"); if (c) { if (say) c.dataset.say = say; else delete c.dataset.say; }
+  const s = document.getElementById("lnStep"); if (s && step !== undefined) s.textContent = step;
+}
+function lnSay(text, lang, step, done) {
+  const g = LN.gen; let fin = false;
+  const end = () => { if (fin || g !== LN.gen) return; fin = true; clearTimeout(LN.wd); done(); };
+  lnMark(lang, step);
+  if (!TTS.ok || !text) { LN.timer = setTimeout(end, 600); return; }
+  try {
+    speechSynthesis.cancel();
+    const zh = lang === "zh", u = new SpeechSynthesisUtterance(zh ? ttsPrep(text) : String(text).replace(/[…~～]/g, " "));
+    if (zh) { if (TTS.hasZh === null) TTS.pick(); u.lang = "zh-CN"; if (TTS.voice) { u.voice = TTS.voice; if (TTS.voice.lang) u.lang = TTS.voice.lang; } }
+    else { u.lang = "vi-VN"; const v = lnViVoice(); if (v) { u.voice = v; if (v.lang) u.lang = v.lang; } }
+    u.rate = Math.min(S.settings.rate || 1, zh ? 2 : 1.25); u.volume = 1; u.pitch = 1;
+    u.onend = end; u.onerror = ev => { if (ev && (ev.error === "canceled" || ev.error === "interrupted")) return; end(); };
+    LN.wd = setTimeout(end, 4000 + String(text).length * (zh ? 700 : 260) / u.rate);
+    setTimeout(() => { if (g !== LN.gen) return; try { speechSynthesis.speak(u); } catch (e) { end(); } }, 40);
+  } catch (e) { end(); }
+}
+/* Mỗi câu: Trung → Trung → Việt → Trung, các lần cách nhau LN.gap (1,8 giây) */
+function lnPlay(i) {
+  const dk = LN.deck; if (!dk.length) return;
+  if (!TTS.ok) { toast("Trình duyệt này không hỗ trợ phát âm (Web Speech API)."); return; }
+  if (i >= dk.length) { lnStop(); LN.done = true; LN.i = dk.length - 1; lnRender(); toast("Đã nghe hết " + dk.length + " câu"); return; }
+  if (TTS.hasZh === false && !TTS.warned) { TTS.warned = true; toast("Thiết bị chưa có giọng tiếng Trung (zh-CN). Hãy cài giọng Trung trong cài đặt hệ thống."); }
+  if (LN.vi && !lnViOk() && !LN.warnedVi) { LN.warnedVi = true; toast("Thiết bị chưa có giọng tiếng Việt: chỉ đọc câu tiếng Trung."); }
+  clearTimeout(LN.timer); LN.i = i; LN.playing = true; LN.done = false; TTS.gen++;
+  const g = ++LN.gen, e = itemInfo(dk[i]).e, gap = fn => { LN.timer = setTimeout(() => { if (g === LN.gen) fn(); }, LN.gap); };
+  lnRender();
+  const useVi = LN.vi && lnViOk();
+  lnSay(e.zh, "zh", "Tiếng Trung · lần 1", () => gap(() =>
+    lnSay(e.zh, "zh", "Tiếng Trung · lần 2", () => gap(() => {
+      const last = () => lnSay(e.zh, "zh", "Tiếng Trung · lần 3", () => gap(() => lnPlay(i + 1)));
+      if (useVi) lnSay(e.vi, "vi", "Nghĩa tiếng Việt", () => gap(last)); else last();
+    }))));
+}
+function lnGo(d) {
+  const n = clamp(LN.i + d, 0, LN.deck.length - 1);
+  if (LN.playing) lnPlay(n); else { LN.i = n; LN.done = false; lnRender(); }
+}
+function lnRender() {
+  const box = $("#fcBody"); if (!box) return;
+  const dk = LN.deck;
+  if (!dk.length) { box.innerHTML = fcEmpty(LN.lv === "a" ? "Bài này chưa có câu Nâng cao để nghe." : "Bài này chưa có câu để nghe.", "freset", "Xem tất cả các bài") + `<div class="lnopt" style="justify-content:center">${lnChip("lv", "Chỉ Nâng cao", LN.lv === "a")}</div>`; return; }
+  LN.i = clamp(LN.i, 0, dk.length - 1);
+  const info = itemInfo(dk[LN.i]), e = info.e, u = info.u;
+  const noVi = LN.vi && TTS.ok && !lnViOk();
+  box.innerHTML = fcProg(LN.i, dk.length) +
+    `<div id="lnCard" class="lncard" data-act="ln-reveal" role="button" tabindex="0" aria-label="Chạm để hiện/ẩn chữ">` +
+    (LN.show
+      ? `<div class="lnzh zh big">${esc(e.zh)}</div><div id="lnStep" class="tiny muted"></div>`
+      : `<div class="lnhp${LN.playing ? " on" : ""}" aria-hidden="true">${ico("hp")}</div><div id="lnStep" class="tiny muted">${LN.playing ? "" : "Chữ đang ẩn · chạm để xem"}</div>`) +
+    `</div>
+    <div class="tiny muted" style="text-align:center">${LN.playing ? "Đang phát…" : LN.done ? "Đã hết danh sách – bấm ▶ để nghe lại từ đầu" : "Mỗi câu: Trung ×2 → Việt → Trung, cách nhau 1,8 giây"}${noVi ? "<br>Máy chưa có giọng tiếng Việt: sẽ bỏ qua phần đọc nghĩa." : ""}</div>
+    <div class="lnopt">${lnChip("lv", "Chỉ Nâng cao", LN.lv === "a")}${lnChip("vi", "Đọc nghĩa Việt", LN.vi)}${lnChip("show", ico("eye") + " Hiện chữ", LN.show)}${rateCtl()}</div>
+    <div class="fcact v5"><button class="btn nav" data-act="ln-prev" aria-label="Câu trước" ${LN.i === 0 ? "disabled" : ""}>${ico("prev")}</button><button class="btn nav lnplay" data-act="ln-play" aria-label="${LN.playing ? "Tạm dừng" : "Phát"}">${ico(LN.playing ? "pause" : "play")}</button><button class="btn nav" data-act="ln-next" aria-label="Câu sau" ${LN.i >= dk.length - 1 ? "disabled" : ""}>${ico("next")}</button></div>`;
+}
+function lnChip(k, t, on) { return `<button type="button" class="chip ${on ? "on" : ""}" data-act="ln-opt" data-k="${k}" aria-pressed="${on}">${t}</button>`; }
+/* Giao diện tối + giữ màn hình sáng suốt thời gian ở chế độ Luyện nghe */
+let LN_WL = null, LN_WLP = false;
+function lnUi(on) {
+  on = !!on; const h = document.documentElement; h.classList.toggle("lndark", on);
+  let m = document.querySelector('meta[name="theme-color"]');
+  if (on) { if (!m) { m = document.createElement("meta"); m.name = "theme-color"; document.head.appendChild(m); } m.content = "#0e1512"; m.dataset.ln = "1"; }
+  else if (m && m.dataset.ln) m.remove();
+  if (on) lnWake(); else lnUnwake();
+}
+async function lnWake() {
+  if (LN_WL || LN_WLP) return;
+  if (!("wakeLock" in navigator)) { if (!LN.wlWarned) { LN.wlWarned = true; toast("Trình duyệt này không hỗ trợ giữ màn hình sáng."); } return; }
+  LN_WLP = true;
+  try {
+    const w = await navigator.wakeLock.request("screen");
+    if (!document.documentElement.classList.contains("lndark")) { try { w.release(); } catch (e) { } }
+    else { LN_WL = w; w.addEventListener("release", () => { if (LN_WL === w) LN_WL = null; }); }
+  } catch (e) { LN_WL = null; if (!LN.wlWarned) { LN.wlWarned = true; toast("Không giữ được màn hình sáng trên thiết bị/trình duyệt này."); } }
+  LN_WLP = false;
+}
+function lnUnwake() { const w = LN_WL; LN_WL = null; if (w) { try { w.release(); } catch (e) { } } }
+/* Tab bị ẩn thì hệ thống tự nhả khóa màn hình: xin lại khi quay về */
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && document.documentElement.classList.contains("lndark") && !LN_WL) lnWake(); });
+function fcRender() { if (FC.mode === "listen") lnRender(); else renderFc(); }
 /* ============ LUYỆN DỊCH ============ */
 const TR = { scope: "all", shuffle: false, deck: [], i: 0, flip: false, built: false };
 function trAllKeys() { const l = []; trackUnits().forEach(u => u.ex.forEach(e => { if (exInTrack(e)) l.push(keyOf("e", e.id, "card")); })); return l; }
@@ -1764,6 +1899,12 @@ function act(a, el) {
     case "next": { const q = Q.q; if (q && !q.rated) sessRate(autoRating(q)); break; }
     case "fshuffle": FC.shuffle = !FC.shuffle; buildDeck(); pgCards(); break;
     case "freset": FC.kind = "sent"; FC.scope = "all"; buildDeck(); pgCards(); break;
+    case "fc-mode": { const m = el.dataset.v === "listen" ? "listen" : "card"; if (m !== FC.mode) { lnStop(); try { if (TTS.ok) speechSynthesis.cancel(); } catch (e) { } FC.mode = m; lnReset(); pgCards(); } break; }
+    case "ln-play": if (LN.playing) { lnStop(); lnRender(); } else lnPlay(LN.done ? 0 : LN.i); break;
+    case "ln-prev": lnGo(-1); break;
+    case "ln-next": lnGo(1); break;
+    case "ln-opt": { const k = el.dataset.k; if (k === "lv") { LN.lv = LN.lv === "a" ? "all" : "a"; lnReset(); lnRender(); } else if (k === "vi" || k === "show") { LN[k] = !LN[k]; lnRender(); } break; }
+    case "ln-reveal": { LN.show = !LN.show; lnRender(); break; }
     case "fc-flip": FC.flip = !FC.flip; { const c = $(".fcard"); if (c) c.classList.toggle("flip", FC.flip); } break;
     case "fc-prev": FC.i--; FC.flip = false; renderFc(); break;
     case "fc-next": FC.i++; FC.flip = false; renderFc(); break;
@@ -1773,7 +1914,7 @@ function act(a, el) {
       modal("Reset lộ trình " + T.name + "?", t === "c" ? "Lộ trình Tổng hợp gồm toàn bộ nội dung nên <b>toàn bộ tiến độ học, lịch ôn,  lịch sử</b> sẽ bị xóa. Thẻ từ vựng của bạn được giữ nguyên." : "Tiến độ, lịch ôn,  lịch sử của lộ trình <b>" + esc(T.name) + "</b> sẽ bị xóa. Các lộ trình khác và thẻ từ vựng được giữ nguyên; tiến độ của lộ trình Tổng hợp sẽ chỉ còn phần của lộ trình kia.", "Reset", "bad", () => { resetTrack(t); toast("Đã reset lộ trình " + T.name + "."); location.hash = "#/home"; route(); });
       break;
     }
-    case "fc-cat": FC.cat = ["v", "t", "x"].includes(el.dataset.v) ? el.dataset.v : "g"; if (FC.cat === "v") VC.built = false; if (FC.cat === "t") TR.built = false; pgCards(); break;
+    case "fc-cat": lnStop(); FC.cat = ["v", "t", "x"].includes(el.dataset.v) ? el.dataset.v : "g"; if (FC.cat === "v") VC.built = false; if (FC.cat === "t") TR.built = false; pgCards(); break;
     case "tshuffle": TR.shuffle = !TR.shuffle; buildTrDeck(); pgTrans(); break;
     case "treset": TR.scope = "all"; buildTrDeck(); pgTrans(); break;
     case "tr-check": trCheck(); break;
@@ -1957,6 +2098,7 @@ function route() {
   if (page === "review") { location.hash = "#/practice"; return; }
   if (page === "session" && !Q) { location.hash = "#/practice"; return; }
   const fn = { home: pgHome, lessons: pgLessons, lesson: pgLesson, practice: pgPractice, cards: pgCards, stats: pgStats, session: pgSession, text: pgText, texts: pgTexts, textedit: pgTextEdit }[page] || pgLessons;
+  if (page !== "cards") { lnStop(); lnUi(false); }
   if (page !== "text") txStop(); const ws0 = $("#wsheet"); if (ws0) ws0.style.display = "none";
   updateHeader(); renderTabs(/^text/.test(page) ? "texts" : page);
   fn(arg);
@@ -1972,12 +2114,14 @@ function fcCatBar() {
 }
 function pgCards() {
   if (FC.cat === "x") FC.cat = "g";
-  if (FC.cat === "v") return pgVocab();
-  if (FC.cat === "t") return pgTrans();
+  if (FC.cat === "v") { lnUi(false); return pgVocab(); }
+  if (FC.cat === "t") { lnUi(false); return pgTrans(); }
   if (!FC.built) buildDeck();
-  setPage(`<div class="fcp">${fcCatBar()}${fcTool("", fcScope("fscope", FC.scope), "fshuffle", FC.shuffle)}<div id="fcBody" class="fcb"></div></div>`);
-  $("#fscope").addEventListener("change", e => { FC.scope = e.target.value; buildDeck(); renderFc(); });
-  renderFc();
+  lnUi(FC.mode === "listen");
+  const md = (v, l) => `<button data-act="fc-mode" data-v="${v}" class="${FC.mode === v ? "on" : ""}" aria-pressed="${FC.mode === v}">${l}</button>`;
+  setPage(`<div class="fcp">${fcCatBar()}<div class="seg full lnmode" role="group" aria-label="Chế độ học">${md("card", "Học thẻ")}${md("listen", ico("hp") + " Luyện nghe")}</div>${fcTool("", fcScope("fscope", FC.scope), "fshuffle", FC.shuffle)}<div id="fcBody" class="fcb"></div></div>`);
+  $("#fscope").addEventListener("change", e => { FC.scope = e.target.value; buildDeck(); fcRender(); });
+  fcRender();
 }
 /* ---------- Tách câu: ghép chữ Hán – pinyin – nghĩa theo từng câu ---------- */
 const BK_H = /[^。！？!?\n]*[。！？!?]+[”’」』）)"]*|[^。！？!?\n]+/g;
