@@ -2,6 +2,8 @@
 nav.tabs .in a.cobw{overflow:hidden}
 nav.tabs .in a.cobw::before{content:"";position:absolute;inset:0;z-index:3;pointer-events:none;border-radius:inherit;background:#696e69;-webkit-mask-image:var(--cobimg);mask-image:var(--cobimg);-webkit-mask-size:100% 100%;mask-size:100% 100%;-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat}
 html.lndark nav.tabs .in a.cobw::before{background:#aeb6ae}
+.fcp>.seg.catseg button{display:inline-flex;align-items:center;justify-content:center;gap:5px}
+.fcp>.seg.catseg .ico{width:16px;height:16px;stroke-width:1.8;flex:none}
 </style>
 </head><body>
 <title>HSK 2 Grammar Master</title>
@@ -1295,7 +1297,7 @@ function pgPractice() {
   $("#ponly").addEventListener("change", e => { PS.only = e.target.checked; });
 }
 /* ============ FLASHCARDS ============ */
-const FC = { cat: "v", mode: "card", scope: "all", kind: "sent", shuffle: false, deck: [], i: 0, flip: false, built: false };
+const FC = { cat: "v", sub: "dich", mode: "card", scope: "all", kind: "sent", shuffle: false, deck: [], i: 0, flip: false, built: false };
 function cardKeyList() {
   const list = [];
   trackUnits().forEach(u => {
@@ -1569,7 +1571,7 @@ function renderFc() {
 }
 function pgTrans() {
   if (!TR.built) buildTrDeck();
-  setPage(`<div class="fcp">${fcCatBar()}${fcTool("", fcScope("tscope", TR.scope), "tshuffle", TR.shuffle)}<div id="trBody" class="fcb"></div></div>`);
+  setPage(`<div class="fcp">${fcCatBar()}${fcSubBar()}${fcTool("", fcScope("tscope", TR.scope), "tshuffle", TR.shuffle)}<div id="trBody" class="fcb"></div></div>`);
   $("#tscope").addEventListener("change", e => { TR.scope = e.target.value; buildTrDeck(); renderTr(); });
   renderTr();
 }
@@ -1952,7 +1954,7 @@ function act(a, el) {
     case "ltab": LV.tab = el.dataset.v; pgLesson(LV.uid); break;
     case "done": { const id = el.dataset.uid; if (S.done[id]) delete S.done[id]; else { S.done[id] = now(); toast("Đã hoàn thành bài ✓"); } save(); updateHeader(); pgLesson(id); renderTabs("lesson"); break; }
     case "lesson-practice": { const uid = el.dataset.uid, only = buildLessonKeys(uid, true).length > 0; startLessonPractice(uid, only); break; }
-    case "lesson-cards": FC.cat = "g"; FC.scope = el.dataset.uid; FC.kind = "sent"; FC.built = false; break;
+    case "lesson-cards": FC.cat = "t"; FC.sub = "the"; FC.mode = "card"; FC.scope = el.dataset.uid; FC.kind = "sent"; FC.built = false; break;
     case "lf-st": LF.st = el.dataset.v; document.querySelectorAll("#stChips .chip").forEach(c => c.classList.toggle("on", c.dataset.v === LF.st)); renderLessonList(); break;
     case "review-start": { startSession("review", buildReviewPack(20), { size: 20 }); break; }
     case "pset": { PS.scope = el.dataset.v; pgPractice(); break; }
@@ -1981,7 +1983,7 @@ function act(a, el) {
     case "next": { const q = Q.q; if (q && !q.rated) sessRate(autoRating(q)); break; }
     case "fshuffle": FC.shuffle = !FC.shuffle; buildDeck(); pgCards(); break;
     case "freset": FC.kind = "sent"; FC.scope = "all"; LN.sel = null; buildDeck(); pgCards(); break;
-    case "fc-mode": { const m = el.dataset.v === "listen" ? "listen" : "card"; if (m !== FC.mode) { lnStop(); try { if (TTS.ok) speechSynthesis.cancel(); } catch (e) { } FC.mode = m; lnReset(); pgCards(); } break; }
+    case "fc-sub": { lnStop(); try { if (TTS.ok) speechSynthesis.cancel(); } catch (e) { } FC.sub = el.dataset.v === "the" ? "the" : "dich"; if (FC.sub === "dich") TR.built = false; pgCards(); break; }
     case "ln-play": if (LN.playing) { lnStop(); lnRender(); } else lnPlay(LN.done ? 0 : LN.i); break;
     case "ln-prev": lnGo(-1); break;
     case "ln-next": lnGo(1); break;
@@ -1997,7 +1999,7 @@ function act(a, el) {
       modal("Reset lộ trình " + T.name + "?", t === "c" ? "Lộ trình Tổng hợp gồm toàn bộ nội dung nên <b>toàn bộ tiến độ học, lịch ôn,  lịch sử</b> sẽ bị xóa. Thẻ từ vựng của bạn được giữ nguyên." : "Tiến độ, lịch ôn,  lịch sử của lộ trình <b>" + esc(T.name) + "</b> sẽ bị xóa. Các lộ trình khác và thẻ từ vựng được giữ nguyên; tiến độ của lộ trình Tổng hợp sẽ chỉ còn phần của lộ trình kia.", "Reset", "bad", () => { resetTrack(t); toast("Đã reset lộ trình " + T.name + "."); location.hash = "#/home"; route(); });
       break;
     }
-    case "fc-cat": lnStop(); FC.cat = ["v", "t", "x"].includes(el.dataset.v) ? el.dataset.v : "g"; if (FC.cat === "v") VC.built = false; if (FC.cat === "t") TR.built = false; pgCards(); break;
+    case "fc-cat": { lnStop(); try { if (TTS.ok) speechSynthesis.cancel(); } catch (e) { } const v = el.dataset.v; FC.cat = v === "v" || v === "l" ? v : "t"; if (FC.cat === "v") VC.built = false; if (FC.cat === "t" && FC.sub === "dich") TR.built = false; pgCards(); break; }
     case "tshuffle": TR.shuffle = !TR.shuffle; buildTrDeck(); pgTrans(); break;
     case "treset": TR.scope = "all"; buildTrDeck(); pgTrans(); break;
     case "tr-check": trCheck(); break;
@@ -2057,7 +2059,7 @@ document.addEventListener("click", e => {
   if ((a === "vc-flip" || a === "tr-flip") && e.target.closest(".vform, .tform")) return;
   if (a === "lesson-practice" || a === "lesson-cards") e.preventDefault();
   act(a, el);
-  if (a === "lesson-cards") { FC.cat = "g"; location.hash = "#/cards"; }
+  if (a === "lesson-cards") { FC.cat = "t"; FC.sub = "the"; FC.mode = "card"; location.hash = "#/cards"; }
 });
 document.addEventListener("keydown", e => {
   if (e.key === "Enter" && e.target.matches && e.target.matches("input.tin")) { if (e.isComposing || e.keyCode === 229) return; e.preventDefault(); trCheck(); return; }
@@ -2193,16 +2195,22 @@ function route() {
 /* Thẻ (flashcard) không còn tab "Bài khóa" */
 function fcCatBar() {
   const b = (v, l) => `<button data-act="fc-cat" data-v="${v}" class="${FC.cat === v ? "on" : ""}" aria-pressed="${FC.cat === v}">${l}</button>`;
-  return `<div class="seg full catseg" role="group" aria-label="Loại thẻ">${b("v", "Từ vựng (" + S.vocab.length + ")")}${b("t", "Luyện dịch")}${b("g", "Ngữ pháp")}</div>`;
+  return `<div class="seg full catseg" role="group" aria-label="Thẻ">${b("v", "Từ vựng (" + S.vocab.length + ")")}${b("l", ico("hp") + " Luyện nghe")}${b("t", "Luyện dịch")}</div>`;
+}
+/* Trong tab Luyện dịch: Dịch câu (gõ bản dịch) | Học thẻ (thẻ ngữ pháp, trước đây là tab Ngữ pháp) */
+function fcSubBar() {
+  const b = (v, l) => `<button data-act="fc-sub" data-v="${v}" class="${FC.sub === v ? "on" : ""}" aria-pressed="${FC.sub === v}">${l}</button>`;
+  return `<div class="seg full lnmode" role="group" aria-label="Luyện dịch">${b("dich", "Dịch câu")}${b("the", "Học thẻ")}</div>`;
 }
 function pgCards() {
-  if (FC.cat === "x") FC.cat = "g";
+  if (FC.cat === "x" || FC.cat === "g") FC.cat = FC.mode === "listen" ? "l" : "t";
   if (FC.cat === "v") { lnUi(false); return pgVocab(); }
-  if (FC.cat === "t") { lnUi(false); return pgTrans(); }
+  if (FC.cat === "t" && FC.sub === "dich") { lnUi(false); return pgTrans(); }
+  FC.mode = FC.cat === "l" ? "listen" : "card"; /* "l" = Luyện nghe; "t" + sub "the" = Học thẻ */
   if (!FC.built) buildDeck(); else if (FC.mode === "listen" && LN.sig !== lnSig()) lnReset(); /* từ vựng/bài khóa vừa đổi → dựng lại bộ câu nghe */
   lnUi(FC.mode === "listen");
-  const md = (v, l) => `<button data-act="fc-mode" data-v="${v}" class="${FC.mode === v ? "on" : ""}" aria-pressed="${FC.mode === v}">${l}</button>`;
-  setPage(`<div class="fcp">${fcCatBar()}<div class="seg full lnmode" role="group" aria-label="Chế độ học">${md("card", "Học thẻ")}${md("listen", ico("hp") + " Luyện nghe")}</div>${fcTool("", FC.mode === "listen" ? lnPickBtn() : fcScope("fscope", FC.scope), "fshuffle", FC.shuffle)}<div id="fcBody" class="fcb"></div></div>`);
+  const tool = FC.mode === "listen" ? fcTool("", lnPickBtn(), "fshuffle", FC.shuffle) : fcTool("", fcScope("fscope", FC.scope), "fshuffle", FC.shuffle);
+  setPage(`<div class="fcp">${fcCatBar()}${FC.cat === "t" ? fcSubBar() : ""}${tool}<div id="fcBody" class="fcb"></div></div>`);
   const fs0 = $("#fscope"); if (fs0) fs0.addEventListener("change", e => { FC.scope = e.target.value; buildDeck(); fcRender(); });
   fcRender();
 }
