@@ -1244,6 +1244,8 @@ function buildLessonKeys(uid, only) {
 function startLessonPractice(uid, only) {
   const keys = buildLessonKeys(uid, only);
   if (!keys.length) { toast("Bài này chưa có câu nào để luyện trong lộ trình hiện tại."); return false; }
+  /* Câu sai ở bài khác chưa đủ 3 lần nhớ lại → chèn ngẫu nhiên vào lượt này (tối đa 8 câu/lượt) */
+  shuffle(trackEx().filter(e => e.uid !== uid && S.lp[e.id] && S.lp[e.id].s === "wr")).slice(0, 8).forEach(e => keys.splice(rnd(keys.length + 1), 0, keyOf("e", e.id, pickType(e))));
   S.psid = (S.psid || 0) + 1; save();
   return startSession("practice", keys, { lesson: uid, scope: "L", only, sid: S.psid });
 }
@@ -1268,7 +1270,7 @@ function pracAnswer(q, ok) {
   if (!r) P[id] = r = { s: ok ? "ok" : "wr", k: 0, lc: 0 };
   else if (ok) { if (r.s === "wr" && r.lc !== sid) { r.k++; r.lc = sid; if (r.k >= 3) { r.s = "ok"; r.k = 0; } } }
   else { r.s = "wr"; r.k = 0; r.lc = 0; }
-  if (!ok && !Q.rq[id]) { Q.rq[id] = 1; const at = Math.min(Q.keys.length, Q.i + 5 + rnd(5)); Q.keys.splice(at, 0, keyOf("e", id, pickType(q.e))); }
+  if (!ok && !Q.rq[id]) { Q.rq[id] = 1; const at = LP ? Q.keys.length : Math.min(Q.keys.length, Q.i + 5 + rnd(5)); Q.keys.splice(at, 0, keyOf("e", id, pickType(q.e))); }
   if (!LP) S.pr = { sid, scope: Q.meta.scope, only: Q.meta.only, keys: Q.keys, i: Q.i, rq: Q.rq };
   save();
 }
@@ -1322,9 +1324,16 @@ function lnOptions() {
 }
 /* Bộ câu nghe: đi theo thứ tự các mục; câu ví dụ trong mỗi bài được xáo ngẫu nhiên, câu của bài khóa giữ đúng thứ tự.
    Bật nút xáo trộn thì xáo toàn bộ. */
+/* Chữ ký nội dung các mục nghe (câu ví dụ từ vựng thêm, câu bài khóa): đổi chữ ký = bộ câu cũ đã lỗi thời */
+function lnSig(opts) {
+  return (opts || lnOptions()).map(o => o.id + "#" + o.n + "#" + (o.kind === "bs" ? o.list.map(e => e.id + e.zh + "|" + e.vi).join("¦") : o.kind === "t" ? bkUnits(o.t).filter(x => x.cj).map(x => x.h + "|" + x.v).join("¦") : "")).join("§");
+}
 function lnBuild() {
+  const opts = lnOptions();
+  if (LN.sel) { const ids = new Set(opts.map(o => o.id)); LN.sel = LN.sel.filter(k => ids.has(k)); if (!LN.sel.length) LN.sel = null; }
+  LN.sig = lnSig(opts);
   const want = LN.sel ? new Set(LN.sel) : null, d = [];
-  lnOptions().forEach(o => {
+  opts.forEach(o => {
     if (want && !want.has(o.id)) return;
     if (o.kind === "t") bkUnits(o.t).forEach(x => { if (x.cj) d.push({ zh: x.h, vi: x.v || "", txt: true, tag: "📖 " + o.t.title }); });
     else if (o.kind === "u") shuffle(lnExList(o.u)).forEach(e => d.push({ zh: e.zh, vi: e.vi || "", tag: lessonLabel(o.u) }));
@@ -1356,7 +1365,7 @@ function openLnPick() {
 }
 function lnReset() { lnStop(); LN.i = 0; LN.done = false; LN.deck = lnBuild(); }
 function lnStop() {
-  const was = LN.playing; LN.gen++; LN.playing = false; clearTimeout(LN.timer); clearTimeout(LN.wd);
+  const was = LN.playing; LN.gen++; LN.playing = false; LN.u = null; clearTimeout(LN.timer); clearTimeout(LN.wd);
   if (was) { try { if (TTS.ok) speechSynthesis.cancel(); } catch (e) { } }
 }
 function lnMark(say, step) {
@@ -1364,20 +1373,28 @@ function lnMark(say, step) {
   const s = document.getElementById("lnStep"); if (s && step !== undefined) s.textContent = step;
 }
 function lnSay(text, lang, step, done) {
-  const g = LN.gen; let fin = false;
+  const g = LN.gen; let fin = false, tries = 0;
   const end = () => { if (fin || g !== LN.gen) return; fin = true; clearTimeout(LN.wd); done(); };
   lnMark(lang, step);
   if (!TTS.ok || !text) { LN.timer = setTimeout(end, 600); return; }
-  try {
-    speechSynthesis.cancel();
-    const zh = lang === "zh", u = new SpeechSynthesisUtterance(zh ? ttsPrep(text) : String(text).replace(/[…~～]/g, " "));
-    if (zh) { if (TTS.hasZh === null) TTS.pick(); u.lang = "zh-CN"; if (TTS.voice) { u.voice = TTS.voice; if (TTS.voice.lang) u.lang = TTS.voice.lang; } }
-    else { u.lang = "vi-VN"; const v = lnViVoice(); if (v) { u.voice = v; if (v.lang) u.lang = v.lang; } }
-    u.rate = Math.min(S.settings.rate || 1, zh ? 2 : 1.25); u.volume = 1; u.pitch = 1;
-    u.onend = end; u.onerror = ev => { if (ev && (ev.error === "canceled" || ev.error === "interrupted")) return; end(); };
-    LN.wd = setTimeout(end, 4000 + String(text).length * (zh ? 700 : 260) / u.rate);
-    setTimeout(() => { if (g !== LN.gen) return; try { speechSynthesis.speak(u); } catch (e) { end(); } }, 40);
-  } catch (e) { end(); }
+  const zh = lang === "zh", say = zh ? ttsPrep(text) : String(text).replace(/[…~～]/g, " "), rate = Math.max(0.1, Math.min(S.settings.rate || 1, zh ? 2 : 1.25));
+  const fire = () => {
+    if (fin || g !== LN.gen) return;
+    try {
+      speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(say);
+      if (zh) { if (TTS.hasZh === null) TTS.pick(); u.lang = "zh-CN"; if (TTS.voice) { u.voice = TTS.voice; if (TTS.voice.lang) u.lang = TTS.voice.lang; } }
+      else { u.lang = "vi-VN"; const v = lnViVoice(); if (v) { u.voice = v; if (v.lang) u.lang = v.lang; } }
+      u.rate = rate; u.volume = 1; u.pitch = 1;
+      u.onend = end;
+      /* Giọng bị hệ thống/trình duyệt hủy giữa chừng (không phải do mình đổi câu) → đọc lại tối đa 2 lần thay vì lặng im rồi nhảy sang bước sau */
+      u.onerror = ev => { if (ev && (ev.error === "canceled" || ev.error === "interrupted")) { if (!fin && g === LN.gen && u === LN.u && tries++ < 2) setTimeout(fire, 150); return; } end(); };
+      LN.u = u; /* giữ tham chiếu: trình duyệt có thể thu dọn utterance đang đọc và làm mất onend */
+      setTimeout(() => { if (fin || g !== LN.gen || u !== LN.u) return; try { speechSynthesis.speak(u); } catch (e) { end(); } }, 40);
+    } catch (e) { end(); }
+  };
+  LN.wd = setTimeout(end, 4000 + String(text).length * (zh ? 700 : 260) / rate);
+  fire();
 }
 /* Mỗi câu: Trung → Trung → Việt → Trung, các lần cách nhau LN.gap (1,8 giây).
    Riêng câu của bài khóa có từ 8 chữ Hán trở xuống: đọc Trung 1 lần rồi đọc nghĩa Việt là xong.
@@ -2182,7 +2199,7 @@ function pgCards() {
   if (FC.cat === "x") FC.cat = "g";
   if (FC.cat === "v") { lnUi(false); return pgVocab(); }
   if (FC.cat === "t") { lnUi(false); return pgTrans(); }
-  if (!FC.built) buildDeck();
+  if (!FC.built) buildDeck(); else if (FC.mode === "listen" && LN.sig !== lnSig()) lnReset(); /* từ vựng/bài khóa vừa đổi → dựng lại bộ câu nghe */
   lnUi(FC.mode === "listen");
   const md = (v, l) => `<button data-act="fc-mode" data-v="${v}" class="${FC.mode === v ? "on" : ""}" aria-pressed="${FC.mode === v}">${l}</button>`;
   setPage(`<div class="fcp">${fcCatBar()}<div class="seg full lnmode" role="group" aria-label="Chế độ học">${md("card", "Học thẻ")}${md("listen", ico("hp") + " Luyện nghe")}</div>${fcTool("", FC.mode === "listen" ? lnPickBtn() : fcScope("fscope", FC.scope), "fshuffle", FC.shuffle)}<div id="fcBody" class="fcb"></div></div>`);
@@ -2595,17 +2612,21 @@ document.addEventListener("click", e => {
   clearTimeout(TP.timer); txPlayAt(TP.i + 1);
 });
 /* ---------- Cách tính "Nhớ %" của bài học ----------
-   80% khi đã đánh dấu hoàn thành bài và đạt tất cả câu ở "Luyện bài này"
-   +10% khi đúng tất cả câu của bài ở thẻ Ôn tập; +10% khi đạt tất cả câu của bài ở Luyện tập theo nhóm
-   -10% cho mỗi câu của bài đang ở trạng thái sai */
+   Nền = tỷ lệ câu của bài đã làm (làm hết = 100%).
+   Mỗi câu đang sai bị trừ 5%. Câu sai được hỏi lại 3 lần (cuối bài + 2 lượt "Luyện bài này" kế tiếp);
+   mỗi lần đúng hoàn lại 1/3 điểm trừ (r.k = số lần nhớ lại đúng), đủ 3 lần thì hết trừ. Sai lại → trừ đủ 5% trở lại.
+   Câu sai ở thẻ Luyện tập / Ôn tập cũng bị trừ theo cùng quy tắc (mỗi câu chỉ tính một lần, lấy mức trừ cao nhất). */
 function unitMem(uid, t) {
   t = t || TRK(); const ex = trackEx(t).filter(e => e.uid === uid); if (!ex.length) return 0;
   const LP = S.lp || {}, PQ = S.pq || {}, RV = S.rv || {};
-  const allLp = ex.every(e => LP[e.id] && LP[e.id].s === "ok");
-  const allPq = ex.every(e => PQ[e.id] && PQ[e.id].s === "ok");
-  const allRv = ex.every(e => RV[e.id] === 1);
-  let wrong = 0; ex.forEach(e => { if ((LP[e.id] && LP[e.id].s === "wr") || (PQ[e.id] && PQ[e.id].s === "wr") || RV[e.id] === 0) wrong++; });
-  return clamp((S.done[uid] && allLp ? 80 : 0) + (allRv ? 10 : 0) + (allPq ? 10 : 0) - 10 * wrong, 0, 100);
+  const left = r => r && r.s === "wr" ? (3 - clamp(r.k | 0, 0, 3)) / 3 : 0;
+  let seen = 0, pen = 0;
+  ex.forEach(e => {
+    const a = LP[e.id], b = PQ[e.id], c = RV[e.id];
+    if (a || b || c === 0 || c === 1) seen++;
+    pen += 5 * Math.max(left(a), left(b), c === 0 ? 1 : 0);
+  });
+  return clamp(Math.round(100 * seen / ex.length - pen), 0, 100);
 }
 /* ---------- Vai trong hội thoại bài khóa ---------- */
 /* Hai nhân vật chính = hai người có nhiều lượt thoại nhất; nhân vật từ thứ ba trở đi là nhân vật nền (giọng tông 0.9) */
