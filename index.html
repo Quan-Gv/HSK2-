@@ -4,6 +4,25 @@ nav.tabs .in a.cobw::before{content:"";position:absolute;inset:0;z-index:3;point
 html.lndark nav.tabs .in a.cobw::before{background:#aeb6ae}
 .fcp>.seg.catseg button{display:inline-flex;align-items:center;justify-content:center;gap:5px}
 .fcp>.seg.catseg .ico{width:16px;height:16px;stroke-width:1.8;flex:none}
+#sideRail{position:fixed;right:0;z-index:60;width:15px;height:56px;border:0;padding:0;background:transparent;min-height:0;cursor:pointer;touch-action:none;-webkit-tap-highlight-color:transparent}
+#sideRail::before{content:"";position:absolute;right:0;top:6px;bottom:6px;width:15px;border-radius:7px 0 0 7px;background:#8E9196;opacity:.6;transition:opacity .15s}
+#sideRail:hover::before,#sideRail:focus-visible::before{opacity:.95}
+#sideRail.hide{display:none}
+#sideMenu{position:fixed;right:0;z-index:61;display:none;flex-direction:column;gap:4px;padding:5px 5px 5px 6px;border-radius:14px 0 0 14px;background:#F1F2F3;border:.5px solid #8E9196;border-right:0}
+#sideMenu.on{display:flex}
+#sideMenu button{width:44px;height:44px;min-height:0;padding:0;border:0;border-radius:12px;background:transparent;font-size:24px;line-height:1;cursor:pointer}
+#sideMenu button:active{background:#E1E3E5}
+html.lndark #sideMenu{background:#2B2E30;border-color:#6F7378}
+html.lndark #sideMenu button:active{background:#3A3E40}
+#noteSheet{position:fixed;right:8px;z-index:62;display:none;flex-direction:column;background:#FFFACD;border:.5px solid #E3D88A;border-radius:12px;overflow:hidden;color:#4A4528;width:min(72vw,460px);max-width:calc(100vw - 16px)}
+#noteSheet.on{display:flex}
+#noteSheet .nh{display:flex;align-items:center;gap:5px;padding:5px 8px 5px 10px;border-bottom:.5px solid #E3D88A;font-size:16px;font-weight:500;color:#7A6F2E}
+#noteSheet .nh span{flex:1}
+#noteSheet .nh button{width:26px;height:26px;min-height:0;padding:0;border:0;border-radius:7px;background:transparent;color:#7A6F2E;font-size:13px;line-height:1;cursor:pointer}
+#noteSheet .nb{position:relative;flex:1;min-height:0;overflow:hidden}
+#noteTa{position:absolute;left:0;top:0;width:100%;height:100%;transform:none;transform-origin:0 0;border:0;outline:0;resize:none;background:transparent;color:#4A4528;font:inherit;font-size:16px;line-height:1.6;padding:12px 15px;margin:0;border-radius:0;box-shadow:none;touch-action:manipulation}
+#noteTa::placeholder{color:#9A8F4A}
+@media print{#sideRail,#sideMenu,#noteSheet{display:none!important}}
 </style>
 </head><body>
 <title>HSK 2 Grammar Master</title>
@@ -566,6 +585,9 @@ function migrate(o) {
   b.psid = Math.max(0, num(o.psid, 0) | 0);
   if (o.pr && typeof o.pr === "object" && Array.isArray(o.pr.keys)) { const ks = o.pr.keys.map(String).filter(k => itemInfo(k)); const i = clamp(num(o.pr.i, 0) | 0, 0, ks.length); if (ks.length && i < ks.length) b.pr = { sid: Math.max(0, num(o.pr.sid, 0) | 0), scope: String(o.pr.scope || "all"), only: !!o.pr.only, keys: ks, i, rq: (o.pr.rq && typeof o.pr.rq === "object") ? Object.fromEntries(Object.keys(o.pr.rq).filter(k => EB[k]).map(k => [k, 1])) : {} }; }
   b.createdAt = num(o.createdAt, b.createdAt);
+  if (typeof o.note === "string") b.note = o.note;
+  if (o.side && typeof o.side.y === "number" && isFinite(o.side.y)) b.side = { y: clamp(o.side.y, 0, 4000) };
+  if (o.settings && typeof o.settings === "object") b.settings.side = o.settings.side !== false;
   if (o.cob && typeof o.cob === "object") b.cob = { seen: num(o.cob.seen, 0) || now(), ex: num(o.cob.ex, 0) || now(), lvA: clamp(num(o.cob.lvA, 0) | 0, 0, 2), armed: o.cob.armed ? 1 : 0, cnt: clamp(num(o.cob.cnt, 0) | 0, 0, 4) };
   UNITS.forEach(u => { const k = u.id + "|" + (u.cmp ? "c" : "b"); if (!b.units[k] && b.units[u.id]) b.units[k] = JSON.parse(JSON.stringify(b.units[u.id])); });
   return b;
@@ -1878,6 +1900,7 @@ function pgStats() {
   <div class="card"><b>Màu giao diện</b><div class="chips" style="margin:8px 0 12px">${THEMES.map(t => `<button class="chip ${(S.settings.theme || "green") === t.id ? "on" : ""}" data-act="set-theme" data-id="${t.id}" aria-pressed="${(S.settings.theme || "green") === t.id}"><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${t.c};border:1px solid rgba(0,0,0,.15);margin-right:6px;vertical-align:-1px"></span>${t.name}</button>`).join("")}</div>
     <b>Tốc độ phát âm mặc định</b><div style="margin:6px 0 10px">${rateCtl()}</div>
     <div class="small muted" style="margin-bottom:10px">Giọng: ${TTS.ok ? (TTS.hasZh ? "có giọng tiếng Trung" : TTS.hasZh === false ? "chưa có giọng tiếng Trung" : "đang kiểm tra…") : "không hỗ trợ"}</div>
+    <div style="margin:0 0 12px"><button type="button" class="hsw ${S.settings.side !== false ? "on" : ""}" role="switch" data-act="side-tog" aria-checked="${S.settings.side !== false}"><span class="hsw-t">Hiện thanh menu phụ</span><span class="hsw-k" aria-hidden="true"><i></i></span><span class="hsw-s">${S.settings.side !== false ? "BẬT" : "TẮT"}</span></button></div>
     <div id="voiceSec" style="margin:0 0 14px">${voiceSecHtml()}</div>
     ${memOnly ? '<div class="tiny" style="margin-top:8px;color:#a43c3c"><b>Hiện trình duyệt đang chặn lưu trữ nên tiến độ sẽ không được lưu.</b></div>' : ""}</div>`);
   const f = $("#importFile"); if (f) f.addEventListener("change", onImportFile);
@@ -1926,6 +1949,7 @@ function sessRate(r) {
 }
 function act(a, el) {
   switch (a) {
+    case "side-tog": { S.settings.side = S.settings.side === false; save(); sideApply(); const on = S.settings.side !== false; el.classList.toggle("on", on); el.setAttribute("aria-checked", on); const st = el.querySelector(".hsw-s"); if (st) st.textContent = on ? "BẬT" : "TẮT"; break; }
     case "set-theme": { const id = el.dataset.id; if (THEMES.some(t => t.id === id)) { S.settings.theme = id; applyTheme(); save(); document.querySelectorAll('[data-act="set-theme"]').forEach(b => { const on = b.dataset.id === id; b.classList.toggle("on", on); b.setAttribute("aria-pressed", on); }); } break; }
     case "goto-settings": { const el = $("#dataSec"); if (el) el.scrollIntoView({ behavior: "smooth", block: "start" }); break; }
     case "speak": TTS.speak(el.dataset.zh, el); break;
@@ -2706,6 +2730,57 @@ document.addEventListener("visibilitychange", () => { if (document.hidden) { cob
 window.addEventListener("pageshow", e => { if (e.persisted) cobVisit(); });
 window.addEventListener("pagehide", () => { cobS().seen = now(); try { save(); } catch (e) { } });
 setInterval(() => { if (!document.hidden) { cobS().seen = now(); cobEval(); } }, 30000);
+/* ============ THANH MENU PHỤ (cạnh phải) + GHI CHÚ ============
+   Thanh xám mỏng 4px bám cạnh phải, chừa sẵn lề 4px nên không che nội dung. Chạm → hiện các mục (emoji cỡ thường),
+   chạm chỗ khác hoặc sau 4 giây → tự ẩn. Thêm mục mới: thêm một dòng vào SIDE_ITEMS. */
+const SIDE_ITEMS = [
+  { id: "note", icon: "📝", label: "Ghi chú", open: () => noteOpen() }
+];
+const SIDE = { menu: false, sheet: false, tm: 0, saveT: 0, mo: 0 };
+function sideY() { const y = S.side && typeof S.side.y === "number" ? S.side.y : 140; return clamp(y, 60, Math.max(60, innerHeight - 110)); }
+function sidePlace() { const r = $("#sideRail"), m = $("#sideMenu"); if (!r) return; r.style.bottom = sideY() + "px"; m.style.bottom = Math.max(8, sideY() - 12) + "px"; }
+function sideCollapse() { clearTimeout(SIDE.tm); SIDE.menu = false; const r = $("#sideRail"), m = $("#sideMenu"); if (!r) return; m.classList.remove("on"); r.classList.remove("hide"); r.setAttribute("aria-expanded", "false"); }
+function sideExpand() { sidePlace(); SIDE.menu = true; $("#sideMenu").classList.add("on"); const r = $("#sideRail"); r.classList.add("hide"); r.setAttribute("aria-expanded", "true"); clearTimeout(SIDE.tm); SIDE.tm = setTimeout(sideCollapse, 4000); }
+function sideApply() { const r = $("#sideRail"); if (!r) return; const on = S.settings.side !== false; document.body.classList.toggle("sideon", on); r.style.display = on ? "" : "none"; if (!on) { sideCollapse(); noteClose(); } sidePlace(); }
+function noteLayout() {
+  const sh = $("#noteSheet"); if (!sh || !SIDE.sheet) return;
+  const vv = window.visualViewport, H = vv ? vv.height : innerHeight, kb = vv ? Math.max(0, innerHeight - vv.height - vv.offsetTop) : 0;
+  let bottom = 12;
+  if (kb > 80) bottom = kb + 8;
+  else { let top = innerHeight; document.querySelectorAll(".fcact,.sticky-actions,.tbar,.tdock").forEach(el => { const r = el.getBoundingClientRect(); if (r.height > 0 && r.top > innerHeight * 0.4 && r.top < innerHeight) top = Math.min(top, r.top); }); if (top < innerHeight) bottom = innerHeight - top + 8; }
+  sh.style.bottom = bottom + "px";
+  sh.style.height = (kb > 80 ? Math.max(110, Math.min(innerHeight * 0.7, H - 16)) : Math.max(160, Math.min(H * 0.7, H - bottom - 56))) + "px";
+}
+function noteOpen() { const ta = $("#noteTa"); ta.value = S.note || ""; SIDE.sheet = true; $("#noteSheet").classList.add("on"); noteLayout(); if (!ta.value) setTimeout(() => ta.focus(), 60); }
+function noteClose() { const sh = $("#noteSheet"); if (!sh) return; clearTimeout(SIDE.saveT); if (SIDE.sheet) { try { save(); } catch (e) { } } SIDE.sheet = false; sh.classList.remove("on"); const ta = $("#noteTa"); if (ta) ta.blur(); }
+(function () {
+  const rail = document.createElement("button"); rail.id = "sideRail"; rail.type = "button"; rail.setAttribute("aria-label", "Menu phụ"); rail.setAttribute("aria-expanded", "false");
+  const menu = document.createElement("div"); menu.id = "sideMenu"; menu.setAttribute("role", "menu");
+  SIDE_ITEMS.forEach(it => { const b = document.createElement("button"); b.type = "button"; b.textContent = it.icon; b.title = it.label; b.setAttribute("aria-label", it.label); b.setAttribute("role", "menuitem"); b.addEventListener("click", () => { sideCollapse(); it.open(); }); menu.appendChild(b); });
+  const sheet = document.createElement("div"); sheet.id = "noteSheet"; sheet.setAttribute("role", "dialog"); sheet.setAttribute("aria-label", "Ghi chú");
+  sheet.innerHTML = '<div class="nh"><span>📝 Ghi chú</span><button type="button" id="noteX" aria-label="Đóng ghi chú">✕</button></div><div class="nb"><textarea id="noteTa" placeholder="Ghi chú tự do…" spellcheck="false" autocomplete="off" autocorrect="off" aria-label="Ghi chú tự do"></textarea></div>';
+  document.body.append(rail, menu, sheet);
+  /* chạm = mở/đóng menu; kéo dọc = đổi vị trí (không nhận vuốt ngang để khỏi đụng cử chỉ quay lại của hệ thống) */
+  let drag = null;
+  rail.addEventListener("pointerdown", e => { drag = { y0: e.clientY, b0: sideY(), moved: false }; try { rail.setPointerCapture(e.pointerId); } catch (x) { } });
+  rail.addEventListener("pointermove", e => { if (!drag) return; const dy = e.clientY - drag.y0; if (!drag.moved && Math.abs(dy) < 6) return; drag.moved = true; S.side = { y: clamp(drag.b0 - dy, 60, Math.max(60, innerHeight - 110)) }; sidePlace(); });
+  rail.addEventListener("pointerup", () => { if (!drag) return; const d = drag; drag = null; if (d.moved) { try { save(); } catch (e) { } } else if (SIDE.menu) sideCollapse(); else sideExpand(); });
+  rail.addEventListener("pointercancel", () => { drag = null; });
+  rail.addEventListener("click", e => { if (e.detail === 0) { SIDE.menu ? sideCollapse() : sideExpand(); } }); /* bàn phím */
+  document.addEventListener("pointerdown", e => { if (SIDE.menu && !menu.contains(e.target) && !rail.contains(e.target)) sideCollapse(); }, true); /* không chặn cú chạm */
+  const ta = sheet.querySelector("#noteTa");
+  ta.addEventListener("input", () => { S.note = ta.value; clearTimeout(SIDE.saveT); SIDE.saveT = setTimeout(() => { try { save(); } catch (e) { } }, 500); });
+  ta.addEventListener("keydown", e => { if (e.key === "Escape") noteClose(); });
+  ta.addEventListener("blur", () => { clearTimeout(SIDE.saveT); try { save(); } catch (e) { } });
+  sheet.querySelector("#noteX").addEventListener("click", noteClose);
+  const relayout = () => { sidePlace(); noteLayout(); };
+  window.addEventListener("resize", relayout); window.addEventListener("orientationchange", () => setTimeout(relayout, 200));
+  if (window.visualViewport) { visualViewport.addEventListener("resize", relayout); visualViewport.addEventListener("scroll", noteLayout); }
+  window.addEventListener("hashchange", () => { sideCollapse(); setTimeout(noteLayout, 200); });
+  SIDE.mo = new MutationObserver(() => { if (SIDE.sheet) { clearTimeout(SIDE.lt); SIDE.lt = setTimeout(noteLayout, 120); } }); SIDE.mo.observe($("#app"), { childList: true });
+})();
+{ const _rt2 = renderTabs; renderTabs = function (cur) { _rt2(cur); try { sideApply(); } catch (e) { } }; }
+sideApply();
 hlInit();
 route();
 /* ============ SPLASH ============ */
