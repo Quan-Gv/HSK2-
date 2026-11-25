@@ -659,6 +659,7 @@ function migrate(o) {
   b.psid = Math.max(0, num(o.psid, 0) | 0);
   if (o.pr && typeof o.pr === "object" && Array.isArray(o.pr.keys)) { const ks = o.pr.keys.map(String).filter(k => itemInfo(k)); const i = clamp(num(o.pr.i, 0) | 0, 0, ks.length); if (ks.length && i < ks.length) b.pr = { sid: Math.max(0, num(o.pr.sid, 0) | 0), scope: String(o.pr.scope || "all"), only: !!o.pr.only, keys: ks, i, rq: (o.pr.rq && typeof o.pr.rq === "object") ? Object.fromEntries(Object.keys(o.pr.rq).filter(k => EB[k]).map(k => [k, 1])) : {} }; }
   b.createdAt = num(o.createdAt, b.createdAt);
+  if (o.ln && typeof o.ln === "object") { const ids = a => Array.isArray(a) ? a.map(k => String(k).slice(0, 40)).slice(0, 600) : null; b.ln = { sel: ids(o.ln.sel), seen: ids(o.ln.seen) }; }
   if (typeof o.note === "string") b.note = o.note;
   if (o.game && typeof o.game === "object") {
     const g = { name: String(o.game.name || "").slice(0, 14), best: {} };
@@ -1431,9 +1432,13 @@ function lnOptions() {
 function lnSig(opts) {
   return (opts || lnOptions()).map(o => o.id + "#" + o.n + "#" + (o.kind === "bs" ? o.list.map(e => e.id + e.zh + "|" + e.vi).join("¦") : o.kind === "t" ? bkUnits(o.t).filter(x => x.cj).map(x => x.h + "|" + x.v).join("¦") : "")).join("§");
 }
+/* Lựa chọn mục nghe được nhớ cho các lần sau (S.ln). Mục mới thêm (từ thêm, bài khóa) tự được đưa vào lựa chọn; mục đã xoá tự bị loại. */
+function lnLoad() { if (LN.loaded) return; LN.loaded = true; if (S.ln) { LN.sel = S.ln.sel && S.ln.sel.length ? S.ln.sel.slice() : null; LN.seen = S.ln.seen ? S.ln.seen.slice() : null; } }
+function lnSaveSel() { const j = JSON.stringify({ sel: LN.sel, seen: LN.seen }); if (j === LN.saved) return; LN.saved = j; S.ln = { sel: LN.sel ? LN.sel.slice() : null, seen: LN.seen ? LN.seen.slice() : null }; save(); }
 function lnBuild() {
-  const opts = lnOptions();
-  if (LN.sel) { const ids = new Set(opts.map(o => o.id)); LN.sel = LN.sel.filter(k => ids.has(k)); if (!LN.sel.length) LN.sel = null; }
+  lnLoad(); const opts = lnOptions(), idl = opts.map(o => o.id);
+  if (LN.sel) { const ids = new Set(idl), seen = new Set(LN.seen || idl); LN.sel = LN.sel.filter(k => ids.has(k)).concat(idl.filter(k => !seen.has(k))); if (!LN.sel.length || LN.sel.length >= idl.length) LN.sel = null; }
+  LN.seen = idl; lnSaveSel();
   LN.sig = lnSig(opts);
   const want = LN.sel ? new Set(LN.sel) : null, d = [];
   opts.forEach(o => {
@@ -1446,7 +1451,7 @@ function lnBuild() {
 }
 function lnPickBtn() { return `<button type="button" class="chip lnpick" data-act="ln-pick">${ico("hp")} Chọn mục muốn nghe (${LN.sel ? LN.sel.length + " mục" : "tất cả"})</button>`; }
 function openLnPick() {
-  const opts = lnOptions(), all = new Set(opts.map(o => o.id)), sel = new Set(LN.sel ? LN.sel.filter(k => all.has(k)) : all);
+  lnLoad(); const opts = lnOptions(), all = new Set(opts.map(o => o.id)), sel = new Set(LN.sel ? LN.sel.filter(k => all.has(k)) : all);
   const grp = { done: "✅ Bài đã hoàn thành", text: "📖 Bài khóa", todo: "📚 Bài chưa học", bs: "🃏 Thẻ từ vựng (Bổ sung)" };
   const gk = o => o.kind === "t" ? "text" : o.kind === "bs" ? "bs" : o.done ? "done" : "todo";
   let html = "", last = "";
@@ -1458,7 +1463,7 @@ function openLnPick() {
   const body = `<div class="pkbar"><span class="tiny muted" id="pkCnt"></span><span><button type="button" class="btn sm ghost" data-pk="all">Chọn hết</button> <button type="button" class="btn sm ghost" data-pk="none">Bỏ hết</button></span></div><div class="pklist">${html}</div>`;
   modal("Chọn mục muốn nghe", body, "Nghe các mục đã chọn", "primary", () => {
     if (!sel.size) { toast("Bạn chưa chọn mục nào."); return; }
-    LN.sel = sel.size === all.size ? null : [...sel]; lnReset(); pgCards();
+    LN.sel = sel.size === all.size ? null : [...sel]; LN.seen = [...all]; lnSaveSel(); lnReset(); pgCards();
   });
   const mbs = document.querySelectorAll(".modal-bg"), bg = mbs[mbs.length - 1]; if (!bg) return;
   const cnt = () => { const c = bg.querySelector("#pkCnt"); if (c) c.textContent = "Đã chọn " + sel.size + "/" + all.size + " mục"; };
