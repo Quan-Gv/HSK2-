@@ -1649,7 +1649,7 @@ function vcSel(cur, n) {
 }
 function openVocabPick() {
   const sel = new Set(VC.mode === "pick" ? VC.pick : []);
-  const body = `<div class="pkbar"><span class="tiny muted" id="pkCnt"></span><span><button type="button" class="btn sm ghost" data-pk="all">Chọn hết</button> <button type="button" class="btn sm ghost" data-pk="none">Bỏ hết</button></span></div><div class="pklist">${S.vocab.map(v => `<label><input type="checkbox" data-pkid="${esc(v.id)}" ${sel.has(v.id) ? "checked" : ""}><span class="zh">${esc(v.zh)}</span><span class="pv">${esc(v.py || "")}${v.py && v.vi ? " · " : ""}${esc(v.vi || "")}</span></label>`).join("")}</div>`;
+  const body = `<div class="pkbar"><span class="tiny muted" id="pkCnt"></span><span><button type="button" class="btn sm ghost" data-pk="all">Chọn hết</button> <button type="button" class="btn sm ghost" data-pk="none">Bỏ hết</button></span></div><div class="pklist">${vocabSorted().map(x => { const v = x.v, tg = x.tag; return `<label><input type="checkbox" data-pkid="${esc(v.id)}" ${sel.has(v.id) ? "checked" : ""}><span class="zh">${esc(v.zh)}</span><span class="pv">${esc(v.py || "")}${v.py && v.vi ? " · " : ""}${esc(v.vi || "")}${tg ? ' <span class="tiny muted">· ' + esc(tg) + "</span>" : ""}</span></label>`; }).join("")}</div>`;
   modal("Chọn từ muốn học", body, "Học các từ đã chọn", "primary", () => {
     if (!sel.size) { toast("Bạn chưa chọn từ nào."); pgVocab(); return; }
     VC.mode = "pick"; VC.pick = [...sel]; buildVocabDeck(); pgVocab();
@@ -1693,6 +1693,7 @@ function renderTr() {
   </div></div><div class="fcspeak">${fcSpk(e.zh, "Nghe câu")}</div>` + fcActions("tr", TR.i, TR.deck.length, false);
 }
 function pgVocab() {
+  const sg = S.texts.map(t => t.id + "." + (t.blocks || []).length + "." + (t.blocks || []).map(b => (b.h || "").length).join(",")).join("|"); if (VC.sig !== sg) { VC.sig = sg; VC.built = false; }
   if (!VC.built) buildVocabDeck();
   if (VC.mode === "pick") VC.pick = VC.pick.filter(id => S.vocab.some(v => v.id === id));
   setPage(`<div class="fcp">${fcCatBar()}<div class="fcrow2${S.vocab.length ? (VC.mode === "pick" ? " pk" : "") : " solo"}"><button class="btn sm k3 addw" data-act="vc-new">${ico("plus")} Thêm thẻ</button>${S.vocab.length ? vcSel(VC.mode, VC.pick.length) + (VC.mode === "pick" ? '<button class="btn sm k3" data-act="vpick">Chọn từ</button>' : "") + `<button class="chip shuf ${VC.shuffle ? "on" : ""}" data-act="vshuffle" aria-label="Xáo trộn" title="Xáo trộn">${ico("shuf")}</button>` : ""}</div><div id="vcBody" class="fcb"></div></div>`);
@@ -1720,7 +1721,30 @@ function fitVcBack() {
 window.addEventListener("resize", () => requestAnimationFrame(fitVcBack));
 if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => requestAnimationFrame(fitVcBack));
 function vocabHL(sentence, word) { const a = esc(sentence), w = esc(word); return w ? a.split(w).join(`<mark class="hl">${w}</mark>`) : a; }
-function vocabList() { return VC.mode === "pick" ? S.vocab.filter(v => VC.pick.includes(v.id)) : S.vocab.slice(); }
+/* Thứ tự thẻ từ vựng: theo bài học (đúng thứ tự các bài), rồi theo bài khóa (đúng thứ tự danh sách bài khóa), từ chưa gặp ở đâu xếp cuối (giữ thứ tự cũ).
+   Từ thêm từ câu ví dụ của bài học thì xếp theo chính bài đó; ngược lại tìm từ đầu tiên xuất hiện trong câu ví dụ của bài / khối chữ Hán của bài khóa. */
+function vocabKey(v, exu) {
+  const z = v.zh || "", L = [];
+  const ui = v.ex && v.ex.id && exu[v.ex.id] ? exu[v.ex.id] : null;
+  for (let i = 0; i < UNITS.length; i++) {
+    const u = UNITS[i], zs = [u.zh].concat(u.ex.map(e => (EB[e.id] || e).zh || ""));
+    let j = -1;
+    if (ui && ui.i === i) j = ui.j + 1; else if (!ui) j = zs.findIndex(t => t.includes(z));
+    if (j >= 0) return { k: [0, i, j, (zs[j] || "").indexOf(z)], tag: lessonLabel(u) };
+  }
+  for (let i = 0; i < S.texts.length; i++) {
+    const bl = S.texts[i].blocks || [], j = bl.findIndex(b => String(b.h || "").includes(z));
+    if (j >= 0) return { k: [1, i, j, String(bl[j].h).indexOf(z)], tag: "📖 " + S.texts[i].title };
+  }
+  return { k: [2, 0, 0, 0], tag: "" };
+}
+function vocabSorted(list) {
+  const exu = {}; UNITS.forEach((u, i) => u.ex.forEach((e, j) => { exu[e.id] = { i, j }; }));
+  const a = (list || S.vocab).map((v, n) => ({ v, n, ...vocabKey(v, exu) }));
+  a.sort((x, y) => { for (let q = 0; q < 4; q++) if (x.k[q] !== y.k[q]) return x.k[q] - y.k[q]; return x.n - y.n; });
+  return a;
+}
+function vocabList() { const l = vocabSorted(VC.mode === "pick" ? S.vocab.filter(v => VC.pick.includes(v.id)) : S.vocab); return l.map(x => x.v); }
 function buildVocabDeck() { let d = vocabList().map(v => v.id); if (VC.shuffle) d = shuffle(d); VC.deck = d; VC.i = 0; VC.flip = false; VC.built = true; }
 function vocabLookup(zh, e) {
   const d = dictInfo(zh); if (d && (d.py || d.vi)) return d;
