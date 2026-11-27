@@ -809,7 +809,7 @@ function ttsRank(v) {
   if (/premium|cao cấp|高品質|优质|優質/i.test(n)) r += 100;
   if (/enhanced|nâng cao|增强|增強/i.test(n)) r += 80;
   if (/natural|neural|online/i.test(n)) r += 90;
-  if (/siri/i.test(n)) r += 70;
+  if (/siri/i.test(n)) r -= 20; /* một số bản iOS liệt kê giọng Siri nhưng Safari không phát được */
   if (/google/i.test(n)) r += 60;
   if (/Yu-?shu|Li-?mu|Tian-?tian|Xiaoxiao|Xiaoyi|Yunxi|Yunyang|Xiaohan/i.test(n)) r += 30;
   if (/compact/i.test(n)) r -= 30;
@@ -820,20 +820,21 @@ function ttsRank(v) {
 function ttsZhVoices() {
   if (!("speechSynthesis" in window)) return [];
   const seen = new Set(), out = [];
-  (speechSynthesis.getVoices() || []).filter(v => /^(zh|cmn)/i.test(v.lang)).forEach(v => { if (!seen.has(v.voiceURI)) { seen.add(v.voiceURI); out.push(v); } });
+  (speechSynthesis.getVoices() || []).filter(v => /^(zh|cmn)/i.test(v.lang) || /Chinese|Mandarin|中文|普通话|普通話|國語|国语|Cantonese|粵|粤/i.test(v.name || "")).forEach(v => { if (!seen.has(v.voiceURI)) { seen.add(v.voiceURI); out.push(v); } });
   return out.sort((a, b) => ttsRank(b) - ttsRank(a));
 }
 function ttsVoiceHtml() {
   if (!TTS.ok) return '<div class="small muted" style="margin-bottom:10px">Trình duyệt này không hỗ trợ phát âm.</div>';
   const L = ttsZhVoices(), cur = S.settings.ttsVoice || "", best = L[0], hq = L.some(v => ttsRank(v) >= 110), nm = v => esc((v.name || "").replace(/^(Microsoft|Google)\s+/i, "").slice(0, 32)) + " [" + esc(v.lang) + "]" + (ttsRank(v) >= 110 ? " ★" : "");
   return `<div id="ttsVoiceBox" style="margin:0 0 12px"><b>Giọng đọc tiếng Trung</b>` + (L.length ? `<div class="row" style="gap:8px;margin:6px 0"><select data-chg="ttsvoice" aria-label="Giọng đọc tiếng Trung" style="flex:1;min-width:0"><option value="">Tự động (giọng tốt nhất${best ? ": " + nm(best).replace(/ ★$/, "") : ""})</option>${L.map(v => `<option value="${esc(v.voiceURI)}" ${cur === v.voiceURI ? "selected" : ""}>${nm(v)}</option>`).join("")}</select><button type="button" class="btn sm" data-act="tts-test">Nghe thử</button></div>` : '<div class="small muted" style="margin:6px 0">Thiết bị chưa có giọng tiếng Trung.</div>')
-    + (hq ? "" : '<div class="tiny muted">★ = giọng chất lượng cao. Máy chưa có giọng này. Trên iPhone/iPad: Cài đặt → Trợ năng → Nội dung được đọc → Giọng nói → Tiếng Trung → tải bản <b>Nâng cao (Enhanced)</b> hoặc <b>Cao cấp (Premium)</b>, rồi mở lại app và chọn giọng ở đây. Trên Android: Cài đặt → Quản lý chung → Chuyển văn bản thành giọng nói (Google) → cài dữ liệu giọng Trung.</div>') + "</div>";
+    + `<div class="row" style="gap:8px;margin:2px 0 6px"><button type="button" class="btn sm ghost" data-act="tts-refresh">Làm mới danh sách giọng</button></div><details class="tiny muted" style="margin:0 0 6px"><summary>Máy báo ${(speechSynthesis.getVoices() || []).length} giọng, ${L.length} giọng tiếng Trung (xem tất cả)</summary><div style="margin-top:4px;line-height:1.6">${(speechSynthesis.getVoices() || []).map(v => esc(v.name) + " [" + esc(v.lang) + "]").join("<br>") || "Chưa có giọng nào."}</div></details>` + (hq ? "" : '<div class="tiny muted">★ = giọng chất lượng cao. Máy chưa có giọng này. Trên iPhone/iPad: Cài đặt → Trợ năng → Nội dung được đọc → Giọng nói → Tiếng Trung → tải bản <b>Nâng cao (Enhanced)</b> hoặc <b>Cao cấp (Premium)</b>, rồi mở lại app và chọn giọng ở đây. Trên Android: Cài đặt → Quản lý chung → Chuyển văn bản thành giọng nói (Google) → cài dữ liệu giọng Trung.</div>') + "</div>";
 }
 const TTS = {
+  bad: new Set((() => { try { return JSON.parse(localStorage.getItem("ttsBad") || "[]"); } catch (e) { return []; } })()),
   ok: "speechSynthesis" in window && "SpeechSynthesisUtterance" in window, voice: null, hasZh: null, warned: false,
   pick() {
     if (!this.ok) return; const vs = speechSynthesis.getVoices() || []; if (!vs.length) return;
-    const L = ttsZhVoices(), want = S.settings && S.settings.ttsVoice;
+    const L = ttsZhVoices().filter(v => !TTS.bad.has(v.voiceURI)), want = S.settings && S.settings.ttsVoice;
     this.voice = (want && L.find(v => v.voiceURI === want)) || L[0] || null;
     this.hasZh = !!this.voice;
   },
@@ -845,7 +846,7 @@ const TTS = {
     if (this.hasZh === null) this.pick();
     if (this.hasZh === false && !this.warned) { this.warned = true; toast("Thiết bị chưa có giọng tiếng Trung (zh-CN). Hãy cài giọng Trung trong cài đặt hệ thống."); }
     try {
-      speechSynthesis.cancel();
+      ttsCancel();
       const u = new SpeechSynthesisUtterance(ttsPrep(text));
       u.lang = "zh-CN"; if (this.voice) u.voice = this.voice;
       u.rate = S.settings.rate || 1; u.pitch = 1; u.volume = 1;
@@ -858,6 +859,34 @@ const TTS = {
     } catch (e) { toast("Không phát được âm thanh."); }
   }
 };
+/* Chống im lặng: nếu giọng được chọn không phát được (lỗi hoặc không bắt đầu đọc sau vài giây — hay gặp ở một số giọng trên iOS) thì ghi nhớ giọng đó là hỏng,
+   chọn giọng khác và đọc lại ngay bằng giọng thay thế. Áp dụng cho mọi nơi trong app có phát âm. */
+/* iOS 18: gọi cancel() lúc không có gì đang đọc rồi speak() ngay thì câu mới hay bị bỏ → chỉ hủy khi thật sự đang đọc/đang chờ; gỡ trạng thái "paused" nếu có */
+const _ttsCancelNative = TTS.ok ? speechSynthesis.cancel.bind(speechSynthesis) : null;
+function ttsCancel() { if (!_ttsCancelNative) return; try { if (speechSynthesis.paused) speechSynthesis.resume(); if (speechSynthesis.speaking || speechSynthesis.pending) _ttsCancelNative(); } catch (e) { } }
+/* Mở khóa phát âm ngay ở lần chạm đầu tiên vào app (iOS chỉ cho đọc sau thao tác của người dùng) */
+(function () { if (!TTS.ok) return; let done = false; const un = () => { if (done) return; done = true; try { const u = new SpeechSynthesisUtterance(" "); u.volume = 0; u.lang = "zh-CN"; speechSynthesis.speak(u); } catch (e) { } ["touchend", "pointerup", "click", "keydown"].forEach(ev => document.removeEventListener(ev, un, true)); }; ["touchend", "pointerup", "click", "keydown"].forEach(ev => document.addEventListener(ev, un, { capture: true, passive: true })); })();
+(function () {
+  if (!TTS.ok || !speechSynthesis.speak || speechSynthesis.__guard) return; speechSynthesis.__guard = true;
+  const nat = speechSynthesis.speak.bind(speechSynthesis);
+  const markBad = u => { try { if (u.voice && u.voice.voiceURI) { TTS.bad.add(u.voice.voiceURI); localStorage.setItem("ttsBad", JSON.stringify([...TTS.bad].slice(-20))); } } catch (e) { } TTS.pick(); };
+  const fallback = u => {
+    markBad(u); toast("Giọng đọc này không phát được trên thiết bị, đã đổi sang giọng khác."); const n = new SpeechSynthesisUtterance(u.text); n.lang = u.lang || "zh-CN"; n.rate = u.rate; n.pitch = u.pitch; n.volume = u.volume; n.__fb = true;
+    if (/^(zh|cmn)/i.test(n.lang) && TTS.voice) { n.voice = TTS.voice; if (TTS.voice.lang) n.lang = TTS.voice.lang; }
+    ["onend", "onerror", "onstart", "onboundary", "onpause", "onresume"].forEach(k => { if (u[k]) n[k] = u[k]; });
+    window.__u2 = n; try { ttsCancel(); } catch (e) { } setTimeout(() => { try { nat(n); } catch (e) { } }, 60);
+  };
+  speechSynthesis.speak = function (u) {
+    if (u && u.voice && !u.__fb && /^(zh|cmn)/i.test(u.lang || "")) {
+      let st = false, done = false; const once = () => { if (done) return; done = true; fallback(u); };
+      u.addEventListener("start", () => { st = true; });
+      u.addEventListener("end", () => { done = true; });
+      u.addEventListener("error", ev => { const e = (ev && ev.error) || ""; if (e === "canceled" || e === "interrupted") { done = true; return; } if (!st && /synthesis-failed|voice-unavailable|language-unavailable|not-allowed/.test(e)) once(); });
+      setTimeout(() => { if (!st && !done && !speechSynthesis.paused) once(); }, 4000);
+    }
+    return nat(u);
+  };
+})();
 /* ---------- Tách câu ghép thành 2 vế để nghe ---------- */
 function splitClauses(zh) {
   const cl = String(zh).match(/[^，；,;]+[，；,;]?/g) || [String(zh)];
@@ -1517,7 +1546,7 @@ function openLnPick() {
 function lnReset() { lnStop(); LN.i = 0; LN.done = false; LN.deck = lnBuild(); }
 function lnStop() {
   const was = LN.playing; LN.gen++; LN.playing = false; LN.u = null; clearTimeout(LN.timer); clearTimeout(LN.wd);
-  if (was) { try { if (TTS.ok) speechSynthesis.cancel(); } catch (e) { } }
+  if (was) { try { if (TTS.ok) ttsCancel(); } catch (e) { } }
 }
 function lnMark(say, step) {
   const c = document.getElementById("lnCard"); if (c) { if (say) c.dataset.say = say; else delete c.dataset.say; }
@@ -1532,7 +1561,7 @@ function lnSay(text, lang, step, done) {
   const fire = () => {
     if (fin || g !== LN.gen) return;
     try {
-      speechSynthesis.cancel();
+      ttsCancel();
       const u = new SpeechSynthesisUtterance(say);
       if (zh) { if (TTS.hasZh === null) TTS.pick(); u.lang = "zh-CN"; if (TTS.voice) { u.voice = TTS.voice; if (TTS.voice.lang) u.lang = TTS.voice.lang; } }
       else { u.lang = "vi-VN"; const v = lnViVoice(); if (v) { u.voice = v; if (v.lang) u.lang = v.lang; } }
@@ -2105,7 +2134,7 @@ function act(a, el) {
     case "goto-settings": { const el = $("#dataSec"); if (el) el.scrollIntoView({ behavior: "smooth", block: "start" }); break; }
     case "speak": TTS.speak(el.dataset.zh, el); break;
     case "hide-tog": { S.settings.hideOpts = !S.settings.hideOpts; save(); if (Q && Q.q && (Q.q.type === "listen" || Q.q.type === "order") && !Q.q.answered) { Q.q.revealed = false; refreshSession(); } break; }
-    case "split-tog": { S.settings.splitSent = !S.settings.splitSent; save(); TTS.gen++; try { speechSynthesis.cancel(); } catch (e) { } if (Q && Q.q && Q.q.type === "listen" && !Q.q.answered) refreshSession(); break; }
+    case "split-tog": { S.settings.splitSent = !S.settings.splitSent; save(); TTS.gen++; try { ttsCancel(); } catch (e) { } if (Q && Q.q && Q.q.type === "listen" && !Q.q.answered) refreshSession(); break; }
     case "speak-part": {
       const q = Q && Q.q; if (!q || !q.e) break; const pr = splitClauses(q.e.zh), p = el.dataset.p;
       if (p === "all") speakSeq(pr, el); else TTS.speak(pr[Number(p)] || q.e.zh, el);
@@ -2113,6 +2142,7 @@ function act(a, el) {
     }
     case "opts-show": { const q = Q && Q.q; if (!q || q.answered) break; q.revealed = true; refreshSession(); break; }
     case "ttsvoice": { S.settings.ttsVoice = el.dataset.v || ""; save(); TTS.pick(); TTS.speak("你好，很高兴认识你。"); break; }
+    case "tts-refresh": { TTS.pick(); const bx = document.getElementById("ttsVoiceBox"); if (bx) bx.outerHTML = ttsVoiceHtml(); toast("Đã làm mới danh sách giọng."); break; }
     case "tts-test": { TTS.pick(); TTS.speak("你好，很高兴认识你。"); break; }
     case "rate-set": {
       S.settings.rate = Number(el.dataset.r); save();
@@ -2160,7 +2190,7 @@ function act(a, el) {
     case "next": { const q = Q.q; if (q && !q.rated) sessRate(autoRating(q)); break; }
     case "fshuffle": FC.shuffle = !FC.shuffle; buildDeck(); pgCards(); break;
     case "freset": FC.kind = "sent"; FC.scope = "all"; LN.sel = null; buildDeck(); pgCards(); break;
-    case "fc-sub": { lnStop(); try { if (TTS.ok) speechSynthesis.cancel(); } catch (e) { } FC.sub = el.dataset.v === "the" ? "the" : "dich"; if (FC.sub === "dich") TR.built = false; pgCards(); break; }
+    case "fc-sub": { lnStop(); try { if (TTS.ok) ttsCancel(); } catch (e) { } FC.sub = el.dataset.v === "the" ? "the" : "dich"; if (FC.sub === "dich") TR.built = false; pgCards(); break; }
     case "ln-play": if (LN.playing) { lnStop(); lnRender(); } else lnPlay(LN.done ? 0 : LN.i); break;
     case "ln-prev": lnGo(-1); break;
     case "ln-next": lnGo(1); break;
@@ -2176,7 +2206,7 @@ function act(a, el) {
       modal("Reset lộ trình " + T.name + "?", t === "c" ? "Lộ trình Tổng hợp gồm toàn bộ nội dung nên <b>toàn bộ tiến độ học, lịch ôn,  lịch sử</b> sẽ bị xóa. Thẻ từ vựng của bạn được giữ nguyên." : "Tiến độ, lịch ôn,  lịch sử của lộ trình <b>" + esc(T.name) + "</b> sẽ bị xóa. Các lộ trình khác và thẻ từ vựng được giữ nguyên; tiến độ của lộ trình Tổng hợp sẽ chỉ còn phần của lộ trình kia.", "Reset", "bad", () => { resetTrack(t); toast("Đã reset lộ trình " + T.name + "."); location.hash = "#/home"; route(); });
       break;
     }
-    case "fc-cat": { lnStop(); try { if (TTS.ok) speechSynthesis.cancel(); } catch (e) { } const v = el.dataset.v; FC.cat = v === "v" || v === "l" ? v : "t"; if (FC.cat === "v") VC.built = false; if (FC.cat === "t" && FC.sub === "dich") TR.built = false; pgCards(); break; }
+    case "fc-cat": { lnStop(); try { if (TTS.ok) ttsCancel(); } catch (e) { } const v = el.dataset.v; FC.cat = v === "v" || v === "l" ? v : "t"; if (FC.cat === "v") VC.built = false; if (FC.cat === "t" && FC.sub === "dich") TR.built = false; pgCards(); break; }
     case "tshuffle": TR.shuffle = !TR.shuffle; buildTrDeck(); pgTrans(); break;
     case "treset": TR.scope = "all"; buildTrDeck(); pgTrans(); break;
     case "tr-check": trCheck(); break;
@@ -2214,7 +2244,7 @@ function act(a, el) {
       save(); FC.cat = "x"; TE.blocks = []; location.hash = "#/text/" + rec.id; break;
     }
     case "tx-tog": { TX[el.dataset.v] = !TX[el.dataset.v]; const b = $("#txBody"); if (b) { b.classList.toggle("sp", TX.py); b.classList.toggle("sv", TX.vi); } el.classList.toggle("on", TX[el.dataset.v]); break; }
-    case "tx-play": { const n = (textById(TX.id) || { blocks: [] }).blocks.length; if (!TP.on) txPlayAt(TP.i >= n ? 0 : TP.i); else if (!TP.paused) { TP.paused = true; TP.gen++; clearTimeout(TP.timer); clearTimeout(TP.wd); try { speechSynthesis.cancel(); } catch (e) { } txUi(); } else txPlayAt(TP.i); break; }
+    case "tx-play": { const n = (textById(TX.id) || { blocks: [] }).blocks.length; if (!TP.on) txPlayAt(TP.i >= n ? 0 : TP.i); else if (!TP.paused) { TP.paused = true; TP.gen++; clearTimeout(TP.timer); clearTimeout(TP.wd); try { ttsCancel(); } catch (e) { } txUi(); } else txPlayAt(TP.i); break; }
     case "tx-replay": txPlayAt(0); break;
     case "tx-from": txPlayAt(Number(el.dataset.i)); break;
     case "ws-close": { const w = $("#wsheet"); if (w) w.style.display = "none"; break; }
@@ -2481,7 +2511,7 @@ function bkSilent() {
   if (!TP.on || TP.paused) return true;
   const c = document.querySelector("#txBody .sen.cur"); return !!(c && c.classList.contains("me"));
 }
-function bkVpHide() { const p = document.getElementById("vpop"); if (p) { p.style.display = "none"; if (p.classList.contains("speaking")) { p.classList.remove("speaking"); try { if (TTS.ok) speechSynthesis.cancel(); } catch (e) { } } } if (VPOP) VPOP.classList.remove("act"); VPOP = null; }
+function bkVpHide() { const p = document.getElementById("vpop"); if (p) { p.style.display = "none"; if (p.classList.contains("speaking")) { p.classList.remove("speaking"); try { if (TTS.ok) ttsCancel(); } catch (e) { } } } if (VPOP) VPOP.classList.remove("act"); VPOP = null; }
 document.addEventListener("click", ev => {
   const pb = ev.target.closest && ev.target.closest("#vpop");
   if (pb) { /* chạm vào bong bóng: phát âm từ, bong bóng giữ nguyên */
@@ -2656,12 +2686,12 @@ function txUi() {
 }
 function txStop() {
   TP.gen++; TP.on = false; TP.paused = false; clearTimeout(TP.timer); clearTimeout(TP.wd); clearInterval(TP.tick);
-  try { if (TTS.ok) speechSynthesis.cancel(); } catch (e) { }
+  try { if (TTS.ok) ttsCancel(); } catch (e) { }
   txUi(); bkProg(0);
 }
 /* Khởi động bộ đọc trước khi đọc câu thật: tránh mất vài chữ đầu ở lần nghe đầu tiên (hoặc sau khi im lâu) */
 const TW = { at: 0, busy: false, q: [] };
-function ttsCancelIfBusy() { try { if (speechSynthesis.speaking || speechSynthesis.pending) { speechSynthesis.cancel(); return true; } } catch (e) { } return false; }
+function ttsCancelIfBusy() { try { if (speechSynthesis.speaking || speechSynthesis.pending) { ttsCancel(); return true; } } catch (e) { } return false; }
 function ttsReady(voice, cb) {
   if (!TW.busy && Date.now() - TW.at < 30000) { cb(); return; }
   TW.q.push(cb); if (TW.busy) return;
@@ -2688,7 +2718,7 @@ function txPlayAt(i, once) {
   const next = () => { clearInterval(TP.tick); if (g !== TP.gen || !TP.on || TP.paused) return; if (TP.loop === 2) { /* lặp một câu: nghỉ chút rồi đọc lại đúng câu này */ TP.skipCancel = true; clearTimeout(TP.timer); TP.timer = setTimeout(() => { if (g === TP.gen && TP.on && !TP.paused) txPlayAt(i, once); }, 450); return; } if (once) { /* ▶ cạnh câu: đọc đúng một câu rồi dừng; ▶ thanh dưới sẽ đọc tiếp từ câu kế */ TP.on = false; TP.paused = false; TP.once = false; TP.i = i + 1 >= U.length ? 0 : i + 1; clearTimeout(TP.timer); clearTimeout(TP.wd); txUi(); bkProg(0); return; } TP.skipCancel = true; txPlayAt(i + 1); };
   /* Lượt của người học: app không đọc; ô thoại chạy màu trái → phải trong (tốc độ 0.7 + 3 giây). Chạm vào ô thoại để sang câu sau. */
   if (R.multi && TX.role >= 0 && R.mains[TX.role] === u.spk) {
-    try { if (TTS.ok) speechSynthesis.cancel(); } catch (e) { }
+    try { if (TTS.ok) ttsCancel(); } catch (e) { }
     const vals = Object.values(TP.msw || {}), base = vals.length ? vals.reduce((x, y) => x + y, 0) / vals.length : 290, dur = Math.round(tot * base / 0.7 + 3000);
     const el = $('#txBody .sen[data-i="' + i + '"]');
     if (el) { el.style.setProperty("--dur", dur + "ms"); el.classList.remove("me"); void el.offsetWidth; el.classList.add("me"); }
@@ -2709,7 +2739,7 @@ function txPlayAt(i, once) {
     ut.onerror = ev => { if (g !== TP.gen || (ev && (ev.error === "canceled" || ev.error === "interrupted"))) return; clearTimeout(TP.wd); silent(); };
     const go = () => {
       if (g !== TP.gen) return;
-      TP.wd = setTimeout(() => { if (g === TP.gen && !started) { try { speechSynthesis.cancel(); } catch (e) { } silent(); } }, 2500);
+      TP.wd = setTimeout(() => { if (g === TP.gen && !started) { try { ttsCancel(); } catch (e) { } silent(); } }, 2500);
       window.__tu = ut; try { speechSynthesis.speak(ut); } catch (e) { silent(); }
     };
     const start = () => { if (g === TP.gen) ttsReady(vo, go); };
@@ -2770,7 +2800,7 @@ document.addEventListener("click", e => {
     if (!TTS.ok) { toast("Trình duyệt này không hỗ trợ phát âm."); return; }
     const k = Number(el.dataset.k), sel = document.querySelector('select[data-bkv="' + k + '"]'); if (sel) { S.settings.bkVoice = S.settings.bkVoice || [0, 1]; S.settings.bkVoice[k] = Number(sel.value); save(); }
     const o = bkVoiceFor(k); txStop(); bkUnlock();
-    try { speechSynthesis.cancel(); const ut = new SpeechSynthesisUtterance("你好，很高兴认识你。"); ut.lang = "zh-CN"; ut.voice = o.voice || TTS.voice || null; if (ut.voice && ut.voice.lang) ut.lang = ut.voice.lang; ut.pitch = o.pitch; ut.rate = TP.rate || 1; setTimeout(() => { try { speechSynthesis.speak(ut); } catch (x) { } }, 40); } catch (x) { }
+    try { ttsCancel(); const ut = new SpeechSynthesisUtterance("你好，很高兴认识你。"); ut.lang = "zh-CN"; ut.voice = o.voice || TTS.voice || null; if (ut.voice && ut.voice.lang) ut.lang = ut.voice.lang; ut.pitch = o.pitch; ut.rate = TP.rate || 1; setTimeout(() => { try { speechSynthesis.speak(ut); } catch (x) { } }, 40); } catch (x) { }
   } else if (a === "bk-tog") {
     const v = el.dataset.v; TX[v] = !TX[v];
     const b = $("#txBody"); if (b) b.classList.toggle(v === "py" ? "nopy" : "novi", !TX[v]);
@@ -2778,7 +2808,7 @@ document.addEventListener("click", e => {
   } else if (a === "bk-play") {
     const t = textById(TX.id); if (!t) return; const n = bkUnits(t).length;
     if (!TP.on) txPlayAt(TP.i >= n ? 0 : TP.i);
-    else if (!TP.paused) { TP.paused = true; TP.gen++; clearTimeout(TP.timer); clearTimeout(TP.wd); clearInterval(TP.tick); try { speechSynthesis.cancel(); } catch (x) { } txUi(); }
+    else if (!TP.paused) { TP.paused = true; TP.gen++; clearTimeout(TP.timer); clearTimeout(TP.wd); clearInterval(TP.tick); try { ttsCancel(); } catch (x) { } txUi(); }
     else txPlayAt(TP.i);
   } else if (a === "bk-loop") { TP.loop = ((TP.loop || 0) + 1) % 3; bkLoopUi(); }
   else if (a === "bk-replay") txPlayAt(0);
