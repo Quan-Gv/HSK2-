@@ -504,6 +504,14 @@ nav.tabs .in a.on::after{display:none}
 .tbar .btn.primary{flex:1}
 textarea.tin{width:100%;border:1.5px solid var(--g2);border-radius:14px;padding:11px 13px;font:inherit;background:#fff;color:var(--ink);resize:vertical;line-height:1.5}
 #wsheet{position:fixed;left:0;right:0;bottom:0;z-index:900;display:none;background:#fff;border-radius:20px 20px 0 0;box-shadow:0 -8px 28px rgba(0,0,0,.22);padding:16px 16px calc(16px + env(safe-area-inset-bottom,0px));max-width:640px;margin:0 auto}
+.lnopt.lnrow1{flex-wrap:nowrap;gap:4px;justify-content:center;white-space:nowrap}
+.lnopt.lnrow1>*{flex:0 0 auto;margin:0}
+.lnopt.lnrow1 .chip{padding:3px 8px;font-size:12.5px;min-height:32px;box-sizing:border-box}
+.lnopt.lnrow1 .seg{display:inline-flex;align-items:stretch;height:32px;margin:0}
+.lnopt.lnrow1 .seg button{padding:0 8px;min-height:0;height:100%;font-size:12.5px}
+#lnSleep{position:fixed;left:0;top:0;right:0;bottom:0;width:100vw;height:100vh;height:100dvh;z-index:2147483000;background:#000;display:flex;align-items:center;justify-content:center;touch-action:none}
+#lnSleep button{box-sizing:border-box;background:#000;color:#d9d9d9;border:.5px solid #fff;border-radius:999px;padding:3px 10px;font:inherit;font-size:13px;min-height:32px;cursor:pointer;-webkit-tap-highlight-color:transparent}
+html.lnsleep,html.lnsleep body{overflow:hidden;background:#000}
 </style>
 <div id="splash" role="presentation" aria-label="Màn hình chào"><div class="sf" id="splashFruit"></div><div class="hello" lang="zh-CN">大家好！</div></div>
 <header class="top"><nav class="tabs" aria-label="Điều hướng chính"><div class="in" id="tabs"></div></nav></header>
@@ -534,7 +542,7 @@ UNITS.forEach(u => {
 /* Chia nhóm Luyện tập: mỗi nhóm GROUP_SIZE câu, chia theo thứ tự bài trong lộ trình đang chọn (Cơ bản / Nâng cao / Tổng hợp).
    Nhóm cuối cùng luôn là "Bổ sung" (câu ví dụ do người học tự thêm). GROUPS / EGRP / GSIZE được tính lại khi đổi lộ trình. */
 const GROUP_SIZE = 60;
-const GROUPS = [], EGRP = {}, GSIZE = [];
+const GROUPS = [], EGRP = {}, GSIZE = [], GISBS = []; /* GISBS[i]: 1 = nhóm Bổ sung (từ thêm lẻ), 2 = nhóm chủ đề từ vựng */
 let GTRK = null;
 function groupRange(list) {
   const ls = []; list.forEach(e => { const u = UB[e.uid]; if (u && ls.indexOf(u.lesson) < 0) ls.push(u.lesson); });
@@ -544,15 +552,21 @@ function groupRange(list) {
   return t;
 }
 function regroup(t) {
-  GTRK = t; GROUPS.length = 0; GSIZE.length = 0; Object.keys(EGRP).forEach(k => delete EGRP[k]);
+  GTRK = t; GROUPS.length = 0; GSIZE.length = 0; GISBS.length = 0; Object.keys(EGRP).forEach(k => delete EGRP[k]);
   const main = ALLEX.filter(e => e.uid !== "bs" && exInTrack(e, t));
   for (let k = 0; k * GROUP_SIZE < main.length; k++) {
     const chunk = main.slice(k * GROUP_SIZE, (k + 1) * GROUP_SIZE);
     GROUPS.push(["Nhóm " + (k + 1), groupRange(chunk)]); GSIZE.push(chunk.length);
     chunk.forEach(e => { EGRP[e.id] = k; });
   }
-  const bsG = GROUPS.length; GROUPS.push(["Nhóm " + (bsG + 1), "Bổ sung"]);
-  GSIZE.push(0); ALLEX.forEach(e => { if (e.uid === "bs") { EGRP[e.id] = bsG; GSIZE[bsG]++; } });
+  const bsG = GROUPS.length; GROUPS.push(["Bổ sung", "Từ thêm lẻ"]); GISBS[bsG] = 1;
+  GSIZE.push(0); ALLEX.forEach(e => { if (e.uid === "bs" && !e.vg) { EGRP[e.id] = bsG; GSIZE[bsG]++; } });
+  /* Mỗi gói từ thêm theo danh sách = 1 nhóm chủ đề, đánh số từ 10 (Nhóm 10, 11, 12…) */
+  const tg = new Map(); ALLEX.forEach(e => { if (e.uid === "bs" && e.vg && !tg.has(e.vg)) tg.set(e.vg, e.vgn); });
+  [...tg.keys()].sort((a, b) => a - b).forEach(n => {
+    const gi = GROUPS.length; GROUPS.push(["Nhóm " + n, tg.get(n) || "Chủ đề"]); GISBS[gi] = 2; GSIZE.push(0);
+    ALLEX.forEach(e => { if (e.uid === "bs" && e.vg === n) { EGRP[e.id] = gi; GSIZE[gi]++; } });
+  });
 }
 regroup("b");
 const TOTAL_Q = ALLEX.length;
@@ -605,7 +619,7 @@ function syncCustom(list) {
     if (!v.ex || !v.ex.zh || v.ex.id) return; /* ex.id != "" = ví dụ có sẵn trong bài học → không đưa vào Nhóm 7 */
     const z = normZh(v.ex.zh); if (!z) return;
     const m = z.match(/[。！？]$/), fp = m ? m[0] : "", ch = segment(fp ? z.slice(0, -1) : z, v.zh, lex); if (!ch.length) return;
-    const e = { id: "vx-" + v.id, lv: "b", src: "vx", uid: "bs", zh: ch.join("") + fp, py: v.ex.py || "", vi: v.ex.vi || "", ch, fp, ord: true, alt: [], vid: v.id };
+    const e = { id: "vx-" + v.id, lv: "b", src: "vx", uid: "bs", zh: ch.join("") + fp, py: v.ex.py || "", vi: v.ex.vi || "", ch, fp, ord: true, alt: [], vid: v.id, vg: v.g > 0 ? v.g : 0, vgn: v.gn || "" };
     e.canOrder = ch.length >= 3; e.okSet = new Set([e.zh].concat(altOrders(ch, fp), Array.isArray(v.ex.alts) ? v.ex.alts : [])); EB[e.id] = e; ALLEX.push(e);
   });
 }
@@ -639,7 +653,7 @@ let S, memOnly = false;
 const THEMES = [{ id: "green", name: "Xanh nhạt", c: "#9ad8ac" }, { id: "pink", name: "Hồng nhạt", c: "#eda6bf" }, { id: "blue", name: "Xanh dương nhạt", c: "#98c3ec" }, { id: "lemon", name: "Vàng chanh nhạt", c: "#d9d36a" }];
 function applyTheme() { const t = (S && S.settings && S.settings.theme) || "green"; if (t === "green") document.documentElement.removeAttribute("data-theme"); else document.documentElement.setAttribute("data-theme", t); }
 function blank() {
-  return { app: APP_ID, schema: APP_SCHEMA, createdAt: now(), items: {}, units: {}, cards: {}, done: {}, types: {}, days: {}, log: [], settings: { rate: 1, theme: "green", hideOpts: false, bkHintId: "", bkVoice: [0, 1] }, nav: {seen: 0, sleepLeft: 0,  last: null, stage: 0, track: null }, pq: {}, pr: null, psid: 0, vocab: [], lp: {}, rv: {}, texts: [] };
+  return { app: APP_ID, schema: APP_SCHEMA, createdAt: now(), items: {}, units: {}, cards: {}, done: {}, types: {}, days: {}, log: [], settings: { rate: 0.75, rv2: 1, theme: "green", hideOpts: false, bkHintId: "", bkVoice: [0, 1] }, nav: {seen: 0, sleepLeft: 0,  last: null, stage: 0, track: null }, pq: {}, pr: null, psid: 0, vocab: [], lp: {}, rv: {}, texts: [] };
 }
 function num(x, d) { x = Number(x); return isFinite(x) ? x : d; }
 function sanitizeRec(r) {
@@ -651,13 +665,13 @@ function migrate(o) {
   if (!o || typeof o !== "object") return b;
   ["items", "units"].forEach(k => { if (o[k] && typeof o[k] === "object") for (const key in o[k]) { const r = sanitizeRec(o[k][key]); if (r) b[k][key] = r; } });
   if (o.cards && typeof o.cards === "object") for (const k in o.cards) if (o.cards[k] === "known" || o.cards[k] === "unknown") b.cards[k] = o.cards[k];
-  if (Array.isArray(o.vocab)) b.vocab = o.vocab.slice(0, 2000).filter(v => v && typeof v === "object" && v.zh).map(v => ({ id: String(v.id || ("v" + Math.random().toString(36).slice(2, 9))).slice(0, 24), zh: String(v.zh).slice(0, 40), py: String(v.py || "").slice(0, 80), hv: String(v.hv || "").slice(0, 80), vi: String(v.vi || "").slice(0, 200), ex: v.ex && v.ex.zh ? { id: String(v.ex.id || "").slice(0, 24), zh: String(v.ex.zh).slice(0, 200), py: String(v.ex.py || "").slice(0, 400), vi: String(v.ex.vi || "").slice(0, 400), alts: Array.isArray(v.ex.alts) ? v.ex.alts.slice(0, 20).map(x => String(x).slice(0, 200)) : [] } : null, t: num(v.t, 0), k: v.k === "known" || v.k === "unknown" ? v.k : "" }));
+  if (Array.isArray(o.vocab)) b.vocab = o.vocab.slice(0, 2000).filter(v => v && typeof v === "object" && v.zh).map(v => ({ id: String(v.id || ("v" + Math.random().toString(36).slice(2, 9))).slice(0, 24), zh: String(v.zh).slice(0, 40), py: String(v.py || "").slice(0, 80), hv: String(v.hv || "").slice(0, 80), vi: String(v.vi || "").slice(0, 200), ex: v.ex && v.ex.zh ? { id: String(v.ex.id || "").slice(0, 24), zh: String(v.ex.zh).slice(0, 200), py: String(v.ex.py || "").slice(0, 400), vi: String(v.ex.vi || "").slice(0, 400), alts: Array.isArray(v.ex.alts) ? v.ex.alts.slice(0, 20).map(x => String(x).slice(0, 200)) : [] } : null, t: num(v.t, 0), k: v.k === "known" || v.k === "unknown" ? v.k : "", g: Math.max(0, Math.min(9999, num(v.g, 0) | 0)), gn: String(v.gn || "").slice(0, 60) }));
   syncCustom(b.vocab); if (o.done && typeof o.done === "object") for (const k in o.done) if (o.done[k]) b.done[k] = num(o.done[k], 1);
   if (o.types && typeof o.types === "object") for (const k in o.types) b.types[k] = { n: Math.max(0, num(o.types[k].n, 0) | 0), c: Math.max(0, num(o.types[k].c, 0) | 0) };
   if (o.days && typeof o.days === "object") for (const k in o.days) if (/^\d{4}-\d\d-\d\d(\|[bac])?$/.test(k)) b.days[k] = { n: Math.max(0, num(o.days[k].n, 0) | 0), c: Math.max(0, num(o.days[k].c, 0) | 0) };
   if (Array.isArray(o.log)) b.log = o.log.slice(-200).filter(x => x && typeof x === "object").map(x => ({ t: num(x.t, 0), mode: String(x.mode || ""), track: ["b", "a", "c"].includes(x.track) ? x.track : "", n: num(x.n, 0) | 0, c: num(x.c, 0) | 0, rt: Array.isArray(x.rt) ? x.rt.slice(0, 4).map(v => num(v, 0) | 0) : [0, 0, 0, 0], units: Array.isArray(x.units) ? x.units.map(String).slice(0, 40) : [], next: num(x.next, 0) }));
   if (o.settings && typeof o.settings === "object" && typeof o.settings.ttsVoice === "string") b.settings.ttsVoice = o.settings.ttsVoice.slice(0, 300);
-  if (o.settings && typeof o.settings === "object") b.settings.rate = [0.75, 1, 1.25].includes(Number(o.settings.rate)) ? Number(o.settings.rate) : 1;
+  if (o.settings && typeof o.settings === "object") b.settings.rate = o.settings.rv2 && [0.6, 0.75, 1].includes(Number(o.settings.rate)) ? Number(o.settings.rate) : 0.75; b.settings.rv2 = 1;
   if (o.settings && typeof o.settings === "object") { b.settings.hideOpts = !!o.settings.hideOpts; b.settings.splitSent = !!o.settings.splitSent; if (typeof o.settings.bkHintId === "string") b.settings.bkHintId = o.settings.bkHintId; if (Array.isArray(o.settings.bkVoice)) b.settings.bkVoice = [0, 1].map(k => { const n = Number(o.settings.bkVoice[k]); return n >= 0 && n < 2 ? n | 0 : k; }); }
   if (o.settings && typeof o.settings === "object") b.settings.theme = THEMES.some(t => t.id === o.settings.theme) ? o.settings.theme : "green";
   if (o.settings && typeof o.settings === "object") { if (typeof o.settings.v1 === "string") b.settings.v1 = o.settings.v1.slice(0, 200); if (typeof o.settings.v2 === "string") b.settings.v2 = o.settings.v2.slice(0, 200); if (typeof o.settings.v3 === "string") b.settings.v3 = o.settings.v3.slice(0, 200); ["pt1", "pt2", "pt3"].forEach(k => { const n = Number(o.settings[k]); if (o.settings[k] !== "" && o.settings[k] != null && isFinite(n) && n >= 0.5 && n <= 1.5) b.settings[k] = Math.round(n * 100) / 100; }); }
@@ -927,7 +941,7 @@ function ico(n) { return '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true
 function speakBtn(zh, cls) { return `<button class="btn icon sm ${cls || ""}" data-act="speak" data-zh="${esc(zh)}" aria-label="Nghe phát âm">${ico("spk")}</button>`; }
 function rateCtl() {
   const r = S.settings.rate;
-  return `<span class="seg" role="group" aria-label="Tốc độ đọc">${[0.75, 1, 1.25].map(v => `<button data-act="rate-set" data-r="${v}" class="${r === v ? "on" : ""}" aria-pressed="${r === v}">${v}×</button>`).join("")}</span>`;
+  return `<span class="seg" role="group" aria-label="Tốc độ đọc">${[0.6, 0.75, 1].map(v => `<button data-act="rate-set" data-r="${v}" class="${r === v ? "on" : ""}" aria-pressed="${r === v}">${v}×</button>`).join("")}</span>`;
 }
 /* ============ TOAST & MODAL ============ */
 let toastTimer;
@@ -1255,7 +1269,7 @@ function makeQuestion(key) {
     q.bank = sh;
   } else if (info.type === "listen") {
     const e = info.e; q.e = e; q.mode = Math.random() < 0.5 ? "vi" : "zh";
-    const same = shuffle(UB[e.uid].ex.filter(x => x.id !== e.id && x.zh !== e.zh && x.vi !== e.vi));
+    const same = shuffle((e.uid === "bs" ? ALLEX.filter(x => x.uid === "bs" && x.vg === e.vg) : UB[e.uid].ex).filter(x => x.id !== e.id && x.zh !== e.zh && x.vi !== e.vi));
     const other = shuffle(ALLEX.filter(x => x.uid !== e.uid && x.zh !== e.zh && x.vi !== e.vi));
     const dis = []; const txt = x => q.mode === "vi" ? x.vi : x.zh, seen = new Set([txt(e)]);
     const mlen = s => q.mode === "vi" ? s.replace(/[\s.,;:!?…"'()\-–—]/g, "").length : (s.match(/[\u4e00-\u9fff]/g) || []).length;
@@ -1402,7 +1416,7 @@ function buildPracticeKeys(scope, only) {
   else {
     const g = Number(scope); list = trackEx().filter(e => EGRP[e.id] === g && (!only || notOk(e)));
     const have = new Set(list.map(e => e.id));
-    trackEx().forEach(e => { const r = S.pq[e.id], h = EGRP[e.id]; if (g < GROUPS.length - 1 && r && r.s === "wr" && h < g && g - h <= 2 && !have.has(e.id)) { have.add(e.id); list.push(e); } });
+    trackEx().forEach(e => { const r = S.pq[e.id], h = EGRP[e.id]; if (!GISBS[g] && r && r.s === "wr" && h < g && g - h <= 2 && !have.has(e.id)) { have.add(e.id); list.push(e); } });
   }
   return shuffle(list).map(e => keyOf("e", e.id, pickType(e)));
 }
@@ -1458,7 +1472,7 @@ function pgPractice() {
   if (PS.scope === "all") PS.scope = "rv";
   const RP = reviewPlan(), dueN = RP.freq.length + RP.over.length + RP.today.length, dueU = dueUnitCount();
   const p = S.pr && S.pr.keys.length && itemInTrack(S.pr.keys[0]) && (S.pr.scope === "all" || GROUPS[Number(S.pr.scope)]) ? S.pr : null;
-  const gs = GROUPS.map((g, i) => [g, i, trackEx().filter(e => EGRP[e.id] === i).length]).filter(x => x[2] > 0);
+  const gs = GROUPS.map((g, i) => [g, i, trackEx().filter(e => EGRP[e.id] === i).length]).filter(x => x[2] > 0).map((x, n) => [x, (GISBS[x[1]] === 1 ? 1 : 0), n]).sort((a, b) => a[1] - b[1] || a[2] - b[2]).map(x => x[0]);
   setPage(`<h2 class="sec" style="margin-top:6px">Luyện tập</h2>
   <div class="row" style="margin:4px 0 10px">${mascot()}<div class="bubble grow">${introOn() ? "Luyện đều đặn, mình sẽ lớn lên cùng bạn nhé! 🌱" : idiomBlock()}</div></div>
   ${p ? `<div class="card cream"><b>Phiên đang dở</b><div class="small muted" style="margin:4px 0 10px">${p.scope === "all" ? "Trộn tất cả" : GROUPS[Number(p.scope)][0] + " · " + GROUPS[Number(p.scope)][1]} — câu ${p.i + 1}/${p.keys.length}</div><div class="row"><button class="btn primary grow" data-act="resume-pr">▶ Tiếp tục</button><button class="btn ghost" data-act="rm-pr">Bỏ phiên</button></div></div>` : ""}
@@ -1467,7 +1481,7 @@ function pgPractice() {
     ${gs.length > 1 ? gs.map(([g, i, n]) => row(String(i), g[0] + " · " + g[1], n + " câu · đạt " + okN(i) + (wrN(i) ? " · " + wrN(i) + " câu cần nhắc lại" : ""))).join("") : ""}</div>
   <label class="row small" style="margin:12px 0;${PS.scope === "rv" ? "display:none" : ""}"><input type="checkbox" id="ponly" ${PS.only ? "checked" : ""} style="width:20px;height:20px"> <span>Chỉ câu chưa đạt (khuyên dùng)</span></label>
   <button class="btn primary block" style="margin-top:${PS.scope === "rv" ? 12 : 0}px" data-act="pstart">${PS.scope === "rv" ? "▶ Bắt đầu ôn tập (20 câu)" : "▶ Bắt đầu luyện tập"}</button></div>
-  <div class="card cream small"><b>Cách hoạt động</b><br><b>🔁 Ôn tập:</b> 20 câu chọn ngẫu nhiên (sắp xếp từ, nghe chọn; không có bài công thức), tập trung vào các câu bạn từng làm sai ở phần Luyện tập và Luyện bài này. Hệ thống tự chấm mức nhớ sau mỗi câu.<br><br><b>Luyện theo nhóm:</b> mỗi câu có thể ra dạng sắp xếp từ hoặc nghe chọn. Câu sai được hỏi lại ngay trong phiên, rồi nhắc lại ở nhóm đó và 2 nhóm kế tiếp. Câu sai phải trả lời đúng 3 lần liên tiếp (ở các phiên khác nhau) mới được tính là đúng. Bạn có thể thoát và tiếp tục bất cứ lúc nào, kết quả từng câu đều được lưu.<br><br><b>Tiến độ riêng:</b> kết quả ở thẻ này tính riêng với phần “Luyện bài này” trong từng bài học, nhưng cả hai đều được tính vào điểm thăng cấp của trái cây. nhóm Bổ sung chỉ gồm các câu ví dụ do bạn tự thêm vào thẻ từ vựng.</div>`);
+  <div class="card cream small"><b>Cách hoạt động</b><br><b>🔁 Ôn tập:</b> 20 câu chọn ngẫu nhiên (sắp xếp từ, nghe chọn; không có bài công thức), tập trung vào các câu bạn từng làm sai ở phần Luyện tập và Luyện bài này. Hệ thống tự chấm mức nhớ sau mỗi câu.<br><br><b>Luyện theo nhóm:</b> mỗi câu có thể ra dạng sắp xếp từ hoặc nghe chọn. Câu sai được hỏi lại ngay trong phiên, rồi nhắc lại ở nhóm đó và 2 nhóm kế tiếp. Câu sai phải trả lời đúng 3 lần liên tiếp (ở các phiên khác nhau) mới được tính là đúng. Bạn có thể thoát và tiếp tục bất cứ lúc nào, kết quả từng câu đều được lưu.<br><br><b>Tiến độ riêng:</b> kết quả ở thẻ này tính riêng với phần “Luyện bài này” trong từng bài học, nhưng cả hai đều được tính vào điểm thăng cấp của trái cây. Các nhóm từ Nhóm 10 trở đi là các gói từ vựng bạn đã thêm theo danh sách (mỗi gói một chủ đề, có cả luyện nghe và sắp xếp câu); “Bổ sung” gồm các câu ví dụ của từ thêm lẻ.</div>`);
   $("#ponly").addEventListener("change", e => { PS.only = e.target.checked; });
 }
 /* ============ FLASHCARDS ============ */
@@ -1495,7 +1509,9 @@ function lnOptions() {
   const T = S.texts.map(t => ({ id: "t:" + t.id, kind: "t", t, n: bkUnits(t).filter(x => x.cj).length })).filter(o => o.n);
   const B = ALLEX.filter(e => e.uid === "bs" && e.zh && e.vi);
   const O = L.filter(o => o.done).concat(T, L.filter(o => !o.done));
-  if (B.length) O.push({ id: "bs", kind: "bs", n: B.length, list: B });
+  const gm = new Map(); B.filter(e => e.vg).forEach(e => { if (!gm.has(e.vg)) gm.set(e.vg, { id: "bs:" + e.vg, kind: "bs", g: e.vg, name: e.vgn || "Chủ đề", list: [] }); gm.get(e.vg).list.push(e); });
+  [...gm.keys()].sort((a, b) => a - b).forEach(n => { const o = gm.get(n); o.n = o.list.length; O.push(o); });
+  const B0 = B.filter(e => !e.vg); if (B0.length) O.push({ id: "bs", kind: "bs", n: B0.length, list: B0 });
   return O;
 }
 /* Bộ câu nghe: đi theo thứ tự các mục; câu ví dụ trong mỗi bài được xáo ngẫu nhiên, câu của bài khóa giữ đúng thứ tự.
@@ -1517,19 +1533,19 @@ function lnBuild() {
     if (want && !want.has(o.id)) return;
     if (o.kind === "t") bkUnits(o.t).forEach(x => { if (x.cj) d.push({ zh: x.h, vi: x.v || "", txt: true, tag: "📖 " + o.t.title }); });
     else if (o.kind === "u") shuffle(lnExList(o.u)).forEach(e => d.push({ zh: e.zh, vi: e.vi || "", tag: lessonLabel(o.u) }));
-    else shuffle(o.list).forEach(e => d.push({ zh: e.zh, vi: e.vi || "", tag: "🃏 Thẻ từ vựng" }));
+    else shuffle(o.list).forEach(e => d.push({ zh: e.zh, vi: e.vi || "", tag: "🃏 " + (o.g ? "Nhóm " + o.g + " · " + o.name : "Thẻ từ vựng") }));
   });
   return FC.shuffle ? shuffle(d) : d;
 }
 function lnPickBtn() { return `<button type="button" class="chip lnpick" data-act="ln-pick">${ico("hp")} Chọn mục muốn nghe (${LN.sel ? LN.sel.length + " mục" : "tất cả"})</button>`; }
 function openLnPick() {
   lnLoad(); const opts = lnOptions(), all = new Set(opts.map(o => o.id)), sel = new Set(LN.sel ? LN.sel.filter(k => all.has(k)) : all);
-  const grp = { done: "✅ Bài đã hoàn thành", text: "📖 Bài khóa", todo: "📚 Bài chưa học", bs: "🃏 Thẻ từ vựng (Bổ sung)" };
+  const grp = { done: "✅ Bài đã hoàn thành", text: "📖 Bài khóa", todo: "📚 Bài chưa học", bs: "🃏 Từ vựng theo chủ đề" };
   const gk = o => o.kind === "t" ? "text" : o.kind === "bs" ? "bs" : o.done ? "done" : "todo";
   let html = "", last = "";
   opts.forEach(o => {
     const k = gk(o); if (k !== last) { last = k; html += `<div class="pkgrp">${grp[k]}</div>`; }
-    const name = o.kind === "t" ? esc(o.t.title) : o.kind === "u" ? esc(lessonLabel(o.u)) + " · " + esc(o.u.vi) : "Câu ví dụ của các từ đã thêm";
+    const name = o.kind === "t" ? esc(o.t.title) : o.kind === "u" ? esc(lessonLabel(o.u)) + " · " + esc(o.u.vi) : o.g ? "Nhóm " + o.g + " · " + esc(o.name) : "Câu ví dụ của các từ thêm lẻ";
     html += `<label><input type="checkbox" data-pkid="${esc(o.id)}" ${sel.has(o.id) ? "checked" : ""}><span class="pkname">${name}</span><span class="tiny muted">${o.n} câu</span></label>`;
   });
   const body = `<div class="pkbar"><span class="tiny muted" id="pkCnt"></span><span><button type="button" class="btn sm ghost" data-pk="all">Chọn hết</button> <button type="button" class="btn sm ghost" data-pk="none">Bỏ hết</button></span></div><div class="pklist">${html}</div>`;
@@ -1557,7 +1573,7 @@ function lnSay(text, lang, step, done) {
   const end = () => { if (fin || g !== LN.gen) return; fin = true; clearTimeout(LN.wd); done(); };
   lnMark(lang, step);
   if (!TTS.ok || !text) { LN.timer = setTimeout(end, 600); return; }
-  const zh = lang === "zh", say = zh ? ttsPrep(text) : String(text).replace(/[…~～]/g, " "), rate = Math.max(0.1, Math.min(S.settings.rate || 1, zh ? 2 : 1.25));
+  const zh = lang === "zh", say = zh ? ttsPrep(text) : String(text).replace(/[…~～]/g, " "), rate = zh ? Math.max(0.1, Math.min(S.settings.rate || 0.75, 2)) : 1; /* lời dịch tiếng Việt: cố định 1× */
   const fire = () => {
     if (fin || g !== LN.gen) return;
     try {
@@ -1621,14 +1637,35 @@ function lnRender() {
       : `<div class="lnhp${LN.playing ? " on" : ""}" aria-hidden="true">${ico("hp")}</div><div id="lnStep" class="tiny muted">${LN.playing ? "" : "Chữ đang ẩn · chạm để xem"}</div>`) +
     `</div>
     <div class="tiny muted" style="text-align:center">${LN.playing ? "Đang phát…" : LN.done ? "Đã hết danh sách – bấm ▶ để nghe lại từ đầu" : "Mỗi câu: Trung ×2 → Việt → Trung, cách nhau 1,8 giây<br>Bài khóa: câu từ 8 chữ Hán trở xuống chỉ đọc Trung ×1 → Việt"}${noVi ? "<br>Máy chưa có giọng tiếng Việt: sẽ bỏ qua phần đọc nghĩa." : ""}</div>
-    <div class="lnopt">${lnChip("lv", "Chỉ Nâng cao", LN.lv === "a")}${lnChip("vi", "Đọc nghĩa Việt", LN.vi)}${lnChip("loop", "🔁 Lặp lại", LN.loop)}${lnChip("show", ico("eye") + " Hiện chữ", LN.show)}${rateCtl()}</div>
+    <div class="lnopt">${lnChip("lv", "Chỉ Nâng cao", LN.lv === "a")}${lnChip("vi", "Đọc nghĩa Việt", LN.vi)}${lnChip("loop", "🔁 Lặp lại", LN.loop)}</div>
+    <div class="lnopt lnrow1">${lnChip("show", ico("eye") + " Hiện chữ", LN.show)}<button type="button" class="chip" id="lnSleepBtn" data-act="ln-sleep">🌙 Sleep mode</button>${rateCtl()}</div>
     <div class="fcact v5"><button class="btn nav" data-act="ln-prev" aria-label="Câu trước" ${LN.i === 0 ? "disabled" : ""}>${ico("prev")}</button><button class="btn nav lnplay" data-act="ln-play" aria-label="${LN.playing ? "Tạm dừng" : "Phát"}">${ico(LN.playing ? "pause" : "play")}</button><button class="btn nav" data-act="ln-next" aria-label="Câu sau" ${LN.i >= dk.length - 1 ? "disabled" : ""}>${ico("next")}</button></div>`;
 }
 function lnChip(k, t, on) { return `<button type="button" class="chip ${on ? "on" : ""}" data-act="ln-opt" data-k="${k}" aria-pressed="${on}">${t}</button>`; }
 /* Giao diện tối + giữ màn hình sáng suốt thời gian ở chế độ Luyện nghe */
 let LN_WL = null, LN_WLP = false;
+/* Sleep mode: phủ màn hình đen tuyền, chỉ còn một nút viền trắng mỏng; vẫn giữ máy thức và tiếp tục phát (màn đen OLED gần như không tốn pin) */
+function lnSleep(on) {
+  let o = document.getElementById("lnSleep"); const h = document.documentElement;
+  if (!on) {
+    if (o) o.remove(); h.classList.remove("lnsleep");
+    const m = document.querySelector('meta[name="theme-color"]'); if (m && m.dataset.ln) m.content = "#0e1512";
+    return;
+  }
+  if (o) return;
+  const ob = document.getElementById("lnSleepBtn"), rc = ob ? ob.getBoundingClientRect() : null;
+  o = document.createElement("div"); o.id = "lnSleep"; o.innerHTML = '<button type="button" aria-label="Thoát Sleep mode">Sleep mode</button>';
+  if (rc && rc.width) { const b = o.firstChild; b.style.cssText = "position:absolute;left:" + rc.left + "px;top:" + rc.top + "px;width:" + rc.width + "px;height:" + rc.height + "px"; }
+  document.body.appendChild(o); h.classList.add("lnsleep");
+  o.querySelector("button").addEventListener("click", ev => { ev.stopPropagation(); lnSleep(false); });
+  let m = document.querySelector('meta[name="theme-color"]');
+  if (!m) { m = document.createElement("meta"); m.name = "theme-color"; m.dataset.ln = "1"; document.head.appendChild(m); }
+  m.content = "#000000";
+  lnWake();
+  if (!LN.playing && LN.deck.length && TTS.ok) lnPlay(LN.done ? 0 : LN.i);
+}
 function lnUi(on) {
-  on = !!on; const h = document.documentElement; h.classList.toggle("lndark", on);
+  on = !!on; if (!on) lnSleep(false); const h = document.documentElement; h.classList.toggle("lndark", on);
   let m = document.querySelector('meta[name="theme-color"]');
   if (on) { if (!m) { m = document.createElement("meta"); m.name = "theme-color"; document.head.appendChild(m); } m.content = "#0e1512"; m.dataset.ln = "1"; }
   else if (m && m.dataset.ln) m.remove();
@@ -1721,13 +1758,14 @@ function vcSel(cur, n) {
 }
 function openVocabPick() {
   const sel = new Set(VC.mode === "pick" ? VC.pick : []);
-  const body = `<div class="pkbar"><span class="tiny muted" id="pkCnt"></span><span><button type="button" class="btn sm ghost" data-pk="all">Chọn hết</button> <button type="button" class="btn sm ghost" data-pk="none">Bỏ hết</button></span></div><div class="pklist">${vocabSorted().map(x => { const v = x.v, tg = x.tag; return `<label><input type="checkbox" data-pkid="${esc(v.id)}" ${sel.has(v.id) ? "checked" : ""}><span class="zh">${esc(v.zh)}</span><span class="pv">${esc(v.py || "")}${v.py && v.vi ? " · " : ""}${esc(v.vi || "")}${tg ? ' <span class="tiny muted">· ' + esc(tg) + "</span>" : ""}</span></label>`; }).join("")}</div>`;
+  const body = `<div class="pkbar"><span class="tiny muted" id="pkCnt"></span><span><button type="button" class="btn sm ghost" data-pk="all">Chọn hết</button> <button type="button" class="btn sm ghost" data-pk="none">Bỏ hết</button></span></div><div class="pklist">${(() => { let last = null; const hasG = S.vocab.some(v => v.g > 0); return vocabSorted().map(x => { const v = x.v, tg = v.g > 0 ? "" : x.tag, gk = v.g > 0 ? "g" + v.g : "0"; let h = ""; if (hasG && gk !== last) { last = gk; h = `<div class="pkgrp"><span>${v.g > 0 ? "🗂 Nhóm " + v.g + " · " + esc(v.gn || "") : "Từ thêm lẻ"}</span> <button type="button" class="btn sm ghost" data-pkg="${gk}" style="float:right;padding:0 10px;min-height:24px">Chọn nhóm</button></div>`; } return h + `<label><input type="checkbox" data-pkid="${esc(v.id)}" data-gk="${gk}" ${sel.has(v.id) ? "checked" : ""}><span class="zh">${esc(v.zh)}</span><span class="pv">${esc(v.py || "")}${v.py && v.vi ? " · " : ""}${esc(v.vi || "")}${tg ? ' <span class="tiny muted">· ' + esc(tg) + "</span>" : ""}</span></label>`; }).join(""); })()}</div>`;
   modal("Chọn từ muốn học", body, "Học các từ đã chọn", "primary", () => {
     if (!sel.size) { toast("Bạn chưa chọn từ nào."); pgVocab(); return; }
     VC.mode = "pick"; VC.pick = [...sel]; buildVocabDeck(); pgVocab();
   });
   const mbs = document.querySelectorAll(".modal-bg"), bg = mbs[mbs.length - 1]; if (!bg) return;
   const cnt = () => { const c = bg.querySelector("#pkCnt"); if (c) c.textContent = "Đã chọn " + sel.size + "/" + S.vocab.length + " từ"; };
+  bg.addEventListener("click", e => { const b = e.target.closest("[data-pkg]"); if (!b) return; const cs = [...bg.querySelectorAll('[data-gk="' + b.dataset.pkg + '"]')], on = cs.some(c => !c.checked); cs.forEach(c => { c.checked = on; if (on) sel.add(c.dataset.pkid); else sel.delete(c.dataset.pkid); }); cnt(); });
   bg.addEventListener("change", e => { const c = e.target.closest("[data-pkid]"); if (!c) return; if (c.checked) sel.add(c.dataset.pkid); else sel.delete(c.dataset.pkid); cnt(); });
   bg.addEventListener("click", e => { const b = e.target.closest("[data-pk]"); if (!b) return; const on = b.dataset.pk === "all"; bg.querySelectorAll("[data-pkid]").forEach(c => { c.checked = on; if (on) sel.add(c.dataset.pkid); else sel.delete(c.dataset.pkid); }); cnt(); });
   cnt();
@@ -1781,7 +1819,7 @@ function renderVc() {
   VC.i = clamp(VC.i, 0, VC.deck.length - 1);
   const v = S.vocab.find(x => x.id === VC.deck[VC.i]); if (!v) { buildVocabDeck(); return renderVc(); }
   const ex = v.ex ? `<div style="margin-top:12px;border-top:1px dashed var(--g2);padding-top:10px;text-align:left"><div class="tiny muted">Ví dụ</div><div class="zh" style="font-size:19px;margin-top:4px;line-height:1.5">${vocabHL(v.ex.zh, v.zh)}</div><div style="color:var(--gd);font-size:14px;margin-top:2px">${esc(v.ex.py)}</div><div style="margin-top:4px">${esc(v.ex.vi)}</div></div>` : "";
-  box.innerHTML = fcProg(VC.i, VC.deck.length) + `<div class="scene"><div class="fcard ${VC.flip ? "flip" : ""}" data-act="vc-flip" role="button" tabindex="0" aria-label="Lật thẻ"><div class="face front"><div class="zh vfront-zh" style="font-size:${vcFrontSize(v.zh)}px">${esc(v.zh)}</div><div class="tiny muted" style="margin-top:20px">Chạm để lật thẻ</div></div><div class="face back" ${VC.flip ? "" : "inert"}><div class="vwrap"><div class="vhead"><span class="zh">${esc(v.zh)}</span></div>${v.py ? `<div class="py" style="display:block;text-align:center;font-size:17px">${esc(v.py)}</div>` : ""}<div class="vinfo"><div class="vrow"><span class="vlab">Nghĩa</span><span class="vval">${esc(v.vi || "—")}</span></div><div class="vrow"><span class="vlab">Âm Hán Việt</span><span class="vval">${esc(hvOf(v) || "—")}</span></div></div>${ex}</div></div></div></div><div class="fcspeak">${fcSpk(v.zh, "Nghe từ")}${v.ex ? fcSpk(v.ex.zh, "Nghe câu") : ""}</div>` + fcActions("vc", VC.i, VC.deck.length, true);
+  box.innerHTML = fcProg(VC.i, VC.deck.length) + `<div class="scene"><div class="fcard ${VC.flip ? "flip" : ""}" data-act="vc-flip" role="button" tabindex="0" aria-label="Lật thẻ"><div class="face front"><div class="zh vfront-zh" style="font-size:${vcFrontSize(v.zh)}px">${esc(v.zh)}</div><div class="tiny muted" style="margin-top:20px">Chạm để lật thẻ</div>${v.g > 0 ? `<div class="tiny muted" style="margin-top:6px">Nhóm ${v.g} · ${esc(v.gn || "")}</div>` : ""}</div><div class="face back" ${VC.flip ? "" : "inert"}><div class="vwrap"><div class="vhead"><span class="zh">${esc(v.zh)}</span></div>${v.py ? `<div class="py" style="display:block;text-align:center;font-size:17px">${esc(v.py)}</div>` : ""}<div class="vinfo"><div class="vrow"><span class="vlab">Nghĩa</span><span class="vval">${esc(v.vi || "—")}</span></div><div class="vrow"><span class="vlab">Âm Hán Việt</span><span class="vval">${esc(hvOf(v) || "—")}</span></div></div>${ex}</div></div></div></div><div class="fcspeak">${fcSpk(v.zh, "Nghe từ")}${v.ex ? fcSpk(v.ex.zh, "Nghe câu") : ""}</div>` + fcActions("vc", VC.i, VC.deck.length, true);
   requestAnimationFrame(fitVcBack);
 }
 function fitVcBack() {
@@ -1796,6 +1834,7 @@ function vocabHL(sentence, word) { const a = esc(sentence), w = esc(word); retur
 /* Thứ tự thẻ từ vựng: theo bài học (đúng thứ tự các bài), rồi theo bài khóa (đúng thứ tự danh sách bài khóa), từ chưa gặp ở đâu xếp cuối (giữ thứ tự cũ).
    Từ thêm từ câu ví dụ của bài học thì xếp theo chính bài đó; ngược lại tìm từ đầu tiên xuất hiện trong câu ví dụ của bài / khối chữ Hán của bài khóa. */
 function vocabKey(v, exu) {
+  if (v.g > 0) return { k: [3, v.g, 0, 0], tag: "Nhóm " + v.g + " · " + (v.gn || "") };
   const z = v.zh || "", L = [];
   const ui = v.ex && v.ex.id && exu[v.ex.id] ? exu[v.ex.id] : null;
   for (let i = 0; i < UNITS.length; i++) {
@@ -1904,21 +1943,25 @@ function parseVocabBulk(text) {
   flush();
   return out;
 }
-function openVocabBulk(text) {
+function nextVocabGroup() { return Math.max(9, ...S.vocab.map(v => v.g || 0)) + 1; }
+function openVocabBulk(text, topic0) {
+  const gnum = nextVocabGroup(); let topic = topic0 || "";
   const sample = "你好 / nǐ hǎo / Nhĩ hảo / Xin chào\n你好！你叫什么名字？\nNǐ hǎo! Nǐ jiào shénme míngzi?\nXin chào! Bạn tên là gì?\n\n今天 / jīntiān / Kim thiên / Hôm nay\n今天你忙吗？\nJīntiān nǐ máng ma?\nHôm nay bạn có bận không?";
-  const body = `<div class="bulkfmt"><b>Cách 1 · Nhờ ChatGPT soạn:</b> bấm nút bên dưới để sao chép prompt, dán vào ChatGPT, gõ danh sách từ của bạn ở cuối, rồi chép kết quả dán vào ô này.<br><button type="button" class="btn sm primary" id="bulkCopy" style="margin-top:6px">📋 Sao chép prompt cho ChatGPT</button></div><div class="bulkfmt"><b>Cách 2 · Tự gõ:</b> mỗi từ một khối, cách nhau một dòng trống:<br><b>chữ Hán / pinyin / Hán Việt / nghĩa</b><br><span class="muted">(tùy chọn) 3 dòng tiếp theo: câu ví dụ · pinyin · nghĩa. Có ví dụ thì app tự tạo bài tập ở nhóm Bổ sung.</span></div><textarea id="bulkTa" class="bulkta" style="min-height:220px" spellcheck="false" autocomplete="off" lang="zh-CN" placeholder="${esc(sample)}">${esc(text)}</textarea><div class="bulksum" id="bulkSum"></div>`;
+  const body = `<div class="bulkfmt"><b>Cách 1 · Nhờ ChatGPT soạn:</b> bấm nút bên dưới để sao chép prompt, dán vào ChatGPT, gõ danh sách từ của bạn ở cuối, rồi chép kết quả dán vào ô này.<br><button type="button" class="btn sm primary" id="bulkCopy" style="margin-top:6px">📋 Sao chép prompt cho ChatGPT</button></div><div class="bulkfmt"><b>Cách 2 · Tự gõ:</b> mỗi từ một khối, cách nhau một dòng trống:<br><b>chữ Hán / pinyin / Hán Việt / nghĩa</b><br><span class="muted">(tùy chọn) 3 dòng tiếp theo: câu ví dụ · pinyin · nghĩa. Có ví dụ thì app tự tạo bài tập ở nhóm Bổ sung.</span></div><div class="bulkfmt"><b>Chủ đề của gói từ này</b> <span class="muted">(sẽ lưu thành <b>Nhóm ${gnum}</b>)</span><input type="text" id="bulkTopic" value="${esc(topic)}" maxlength="60" placeholder="ví dụ: Thời tiết, Đồ ăn, Du lịch…" autocomplete="off" style="width:100%;margin-top:6px;padding:9px 11px;border:1.5px solid var(--g2);border-radius:12px;font:inherit;background:#fff;color:var(--ink)"></div><textarea id="bulkTa" class="bulkta" style="min-height:220px" spellcheck="false" autocomplete="off" lang="zh-CN" placeholder="${esc(sample)}">${esc(text)}</textarea><div class="bulksum" id="bulkSum"></div>`;
   let cur = text || "";
   modal("Thêm thẻ từ vựng theo danh sách", body, "Thêm vào thẻ", "primary", () => {
-    const r = parseVocabBulk(cur);
-    if (!r.ok.length) { toast("Chưa có dòng hợp lệ để thêm."); openVocabBulk(cur); return; }
-    const t = now(); S.vocab = r.ok.map((w, i) => ({ id: "v" + (t + i).toString(36) + rnd(1e4).toString(36), zh: w.zh, py: w.py, hv: w.hv, vi: w.vi, ex: w.ex || null, t, k: "" })).concat(S.vocab);
+    const r = parseVocabBulk(cur), tn = topic.replace(/\s+/g, " ").trim();
+    if (!tn) { toast("Hãy đặt tên chủ đề cho gói từ này."); openVocabBulk(cur, topic); return; }
+    if (!r.ok.length) { toast("Chưa có dòng hợp lệ để thêm."); openVocabBulk(cur, topic); return; }
+    const g = nextVocabGroup(), t = now(); S.vocab = r.ok.map((w, i) => ({ id: "v" + (t + i).toString(36) + rnd(1e4).toString(36), zh: w.zh, py: w.py, hv: w.hv, vi: w.vi, ex: w.ex || null, t, k: "", g, gn: tn })).concat(S.vocab);
     syncCustom(S.vocab); save(); VC.built = false; VC.mode = "all";
     const nex = r.ok.filter(w => w.ex).length;
-    toast("Đã thêm " + r.ok.length + " thẻ" + (nex ? " (" + nex + " có ví dụ → nhóm Bổ sung)" : "") + (r.dup.length ? " · bỏ qua " + r.dup.length + " từ đã có" : "") + (r.noex.length ? " · " + r.noex.length + " ví dụ không dùng được" : "") + (r.bad.length ? " · " + r.bad.length + " dòng lỗi" : ""));
+    toast("Đã thêm " + r.ok.length + " thẻ vào Nhóm " + g + " · " + tn + (nex ? " (" + nex + " có ví dụ → nhóm Bổ sung)" : "") + (r.dup.length ? " · bỏ qua " + r.dup.length + " từ đã có" : "") + (r.noex.length ? " · " + r.noex.length + " ví dụ không dùng được" : "") + (r.bad.length ? " · " + r.bad.length + " dòng lỗi" : ""));
     if (/^#\/cards/.test(location.hash) && FC.cat === "v") pgVocab(); hlRefresh();
   });
   const mbs = document.querySelectorAll(".modal-bg"), bg = mbs[mbs.length - 1]; if (!bg) return;
-  const ta = bg.querySelector("#bulkTa"), sum = bg.querySelector("#bulkSum");
+  const ta = bg.querySelector("#bulkTa"), sum = bg.querySelector("#bulkSum"), tp = bg.querySelector("#bulkTopic");
+  tp.addEventListener("input", () => { topic = tp.value; });
   bg.querySelector("#bulkCopy").addEventListener("click", () => copyText(BULK_PROMPT, "Đã sao chép prompt. Hãy dán vào ChatGPT."));
   const upd = () => {
     cur = ta.value; if (!cur.trim()) { sum.innerHTML = ""; return; }
@@ -2079,7 +2122,6 @@ function pgStats() {
   <h2 class="sec" id="dataSec">Dữ liệu & cài đặt</h2>
   <div class="card"><b>Màu giao diện</b><div class="chips" style="margin:8px 0 12px">${THEMES.map(t => `<button class="chip ${(S.settings.theme || "green") === t.id ? "on" : ""}" data-act="set-theme" data-id="${t.id}" aria-pressed="${(S.settings.theme || "green") === t.id}"><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${t.c};border:1px solid rgba(0,0,0,.15);margin-right:6px;vertical-align:-1px"></span>${t.name}</button>`).join("")}</div>
     <b>Tốc độ phát âm mặc định</b><div style="margin:6px 0 10px">${rateCtl()}</div>
-    ${ttsVoiceHtml()}
     <div style="margin:0 0 12px"><button type="button" class="hsw ${S.settings.side !== false ? "on" : ""}" role="switch" data-act="side-tog" aria-checked="${S.settings.side !== false}"><span class="hsw-t">Hiện thanh menu phụ</span><span class="hsw-k" aria-hidden="true"><i></i></span><span class="hsw-s">${S.settings.side !== false ? "BẬT" : "TẮT"}</span></button></div>
     <div id="voiceSec" style="margin:0 0 14px">${voiceSecHtml()}</div>
     ${memOnly ? '<div class="tiny" style="margin-top:8px;color:#a43c3c"><b>Hiện trình duyệt đang chặn lưu trữ nên tiến độ sẽ không được lưu.</b></div>' : ""}</div>`);
@@ -2196,6 +2238,7 @@ function act(a, el) {
     case "ln-next": lnGo(1); break;
     case "ln-opt": { const k = el.dataset.k; if (k === "lv") { LN.lv = LN.lv === "a" ? "all" : "a"; lnReset(); lnRender(); } else if (k === "vi" || k === "show" || k === "loop") { LN[k] = !LN[k]; lnRender(); } break; }
     case "ln-pick": openLnPick(); break;
+    case "ln-sleep": lnSleep(true); break;
     case "ln-reveal": { LN.show = !LN.show; lnRender(); break; }
     case "fc-flip": FC.flip = !FC.flip; { const c = $(".fcard"); if (c) c.classList.toggle("flip", FC.flip); } break;
     case "fc-prev": FC.i--; FC.flip = false; renderFc(); break;
@@ -2619,7 +2662,7 @@ function bkVoiceFor(k) { const o = bkVoiceOpts(), sel = (S.settings.bkVoice || [
 function voiceSecHtml() {
   const o = bkVoiceOpts(), sv = S.settings.bkVoice || [0, 1];
   const row = k => `<div class="vrw"><b>Nhân vật chính ${k + 1}</b><select data-bkv="${k}" aria-label="Giọng đọc nhân vật chính ${k + 1}">${o.map((x, i) => `<option value="${i}" ${sv[k] === i ? "selected" : ""}>${esc(x.label)}</option>`).join("")}</select><button type="button" class="btn icon sm" data-act="bk-vtest" data-k="${k}" aria-label="Nghe thử">${ico("spk")}</button></div>`;
-  return `<b>Giọng đọc nhân vật (bài khóa)</b><div class="bkvoice" style="margin:6px 0 0;padding:6px 10px">${row(0)}${row(1)}</div><div class="tiny muted" style="margin-top:6px">Chọn giọng cho 2 nhân vật chính của bài hội thoại.</div><div class="tiny muted" style="margin-top:6px">Giọng trên máy: ${bkVoiceList().length ? bkVoiceList().map(v => esc(v.name)).join(", ") : "chưa có. Bấm nút loa một lần rồi tải lại trang."}</div>`;
+  return `<b>Giọng đọc nhân vật (bài khóa)</b><div class="bkvoice" style="margin:6px 0 0;padding:6px 10px">${row(0)}${row(1)}</div><div class="tiny muted" style="margin-top:6px">Chọn giọng cho 2 nhân vật chính của bài hội thoại.</div>`;
 }
 if (TTS.ok && speechSynthesis.addEventListener) speechSynthesis.addEventListener("voiceschanged", () => { const b = document.getElementById("voiceSec"); if (b && !(document.activeElement && document.activeElement.tagName === "SELECT")) b.innerHTML = voiceSecHtml(); });
 /* ---------- Trang đọc bài khóa ---------- */
